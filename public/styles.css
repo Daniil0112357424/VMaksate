@@ -17,7 +17,7 @@ body {
 
 .sidebar,
 .chat-panel {
-  padding: 20px;
+  padding: 16px;
 }
 
 .sidebar {
@@ -29,10 +29,12 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-height: 100vh;
 }
 
 h1 {
   margin-top: 0;
+  margin-bottom: 12px;
 }
 
 .block-label {
@@ -62,6 +64,8 @@ button {
   flex-direction: column;
   gap: 8px;
   margin-top: 12px;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .user-item {
@@ -92,6 +96,7 @@ button {
   background: #0f172a;
   padding: 12px;
   border-radius: 12px;
+  min-height: 220px;
 }
 
 .message {
@@ -100,6 +105,7 @@ button {
   background: #1e3a8a;
   border-radius: 10px;
   max-width: 70%;
+  word-break: break-word;
 }
 
 .message.me {
@@ -110,15 +116,21 @@ button {
 .composer {
   display: flex;
   gap: 10px;
+  position: sticky;
+  bottom: 8px;
+  background: #111827;
+  padding-top: 4px;
 }
 
 .composer input {
   margin-bottom: 0;
+  min-width: 0;
 }
 
 .composer button {
   width: 160px;
   margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 @media (max-width: 760px) {
@@ -129,5 +141,26 @@ button {
   .sidebar {
     border-right: none;
     border-bottom: 1px solid #374151;
+  }
+
+  .chat-panel {
+    min-height: auto;
+    padding-top: 8px;
+  }
+
+  .user-list {
+    max-height: 180px;
+  }
+
+  .composer {
+    flex-direction: column;
+  }
+
+  .composer button {
+    width: 100%;
+  }
+
+  .message {
+    max-width: 90%;
   }
 }
