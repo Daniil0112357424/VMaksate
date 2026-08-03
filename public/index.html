@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ВМаксате Messenger</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="sidebar">
+        <h1>ВМаксате</h1>
+
+        <label class="block-label" for="myId">Ваш user id</label>
+        <input id="myId" placeholder="Например: user-42" />
+
+        <label class="block-label" for="myName">Ваше имя</label>
+        <input id="myName" placeholder="Например: Иван" />
+
+        <button id="createUserBtn">Сохранить профиль</button>
+
+        <label class="block-label" for="searchInput">Поиск собеседника</label>
+        <input id="searchInput" placeholder="Ищите по user id или имени" />
+        <div id="userList" class="user-list"></div>
+      </section>
+
+      <section class="chat-panel">
+        <div class="chat-header">
+          <div>
+            <div class="caption">Диалог</div>
+            <strong id="chatPartner">Выберите собеседника</strong>
+          </div>
+        </div>
+
+        <div id="messages" class="messages"></div>
+
+        <div class="composer">
+          <input id="messageInput" placeholder="Напишите сообщение..." />
+          <button id="sendBtn">Отправить</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
