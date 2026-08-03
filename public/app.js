@@ -36,6 +36,10 @@ async function searchUsers() {
   renderUsers(users);
 }
 
+setInterval(() => {
+  searchUsers();
+}, 2000);
+
 async function createUser() {
   const id = myIdInput.value.trim();
   const label = myNameInput.value.trim();
@@ -111,6 +115,7 @@ searchInput.addEventListener('input', searchUsers);
 createUserBtn.addEventListener('click', createUser);
 sendBtn.addEventListener('click', sendMessage);
 startChatRefresh();
+searchUsers();
 
 messageInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {

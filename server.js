@@ -30,21 +30,16 @@ function saveStore(store) {
   fs.writeFileSync(dataFile, JSON.stringify(store, null, 2));
 }
 
-function seedUsers() {
+function pruneDemoUsers() {
   const store = readStore();
-  const defaults = [
-    { id: 'demo-1', label: 'Demo Alice' },
-    { id: 'demo-2', label: 'Demo Bob' },
-    { id: 'demo-3', label: 'Demo Carol' },
-  ];
+  const demoUsers = new Set(store.users.filter((u) => /^demo-/i.test(String(u.id))).map((u) => u.id));
 
-  defaults.forEach((item) => {
-    const exists = store.users.some((user) => user.id === item.id);
-    if (!exists) {
-      store.users.push(item);
-    }
-  });
+  if (demoUsers.size === 0) {
+    return;
+  }
 
+  store.users = store.users.filter((user) => !demoUsers.has(user.id));
+  store.messages = store.messages.filter((message) => !demoUsers.has(message.fromId) && !demoUsers.has(message.toId));
   saveStore(store);
 }
 
@@ -61,7 +56,7 @@ function ensureUser(id, label) {
   saveStore(store);
 }
 
-seedUsers();
+pruneDemoUsers();
 
 app.get('/api/users', (req, res) => {
   const search = String(req.query.search || '').toLowerCase();
@@ -85,6 +80,28 @@ app.post('/api/users', (req, res) => {
   const store = readStore();
   const user = store.users.find((entry) => entry.id === String(id));
   res.json({ ok: true, user });
+});
+
+app.delete('/api/users/:id', (req, res) => {
+  const id = String(req.params.id || '');
+  if (!id) {
+    return res.status(400).json({ error: 'Need user id.' });
+  }
+
+  const store = readStore();
+  store.users = store.users.filter((user) => user.id !== id);
+  store.messages = store.messages.filter((message) => message.fromId !== id && message.toId !== id);
+  saveStore(store);
+
+  res.json({ ok: true, deletedUserId: id });
+});
+
+app.delete('/api/users', (req, res) => {
+  const store = readStore();
+  store.users = [];
+  store.messages = [];
+  saveStore(store);
+  res.json({ ok: true });
 });
 
 app.get('/api/chat', (req, res) => {
