@@ -68,6 +68,8 @@ async function loadMessages() {
     div.textContent = `${item.fromId}: ${item.text}`;
     messagesBox.appendChild(div);
   });
+
+  messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
 let chatRefreshTimer = null;
