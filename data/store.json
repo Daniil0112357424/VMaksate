@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "id": "demo-1",
+      "label": "Demo Alice"
+    },
+    {
+      "id": "demo-2",
+      "label": "Demo Bob"
+    },
+    {
+      "id": "demo-3",
+      "label": "Demo Carol"
+    }
+  ],
+  "messages": []
+}
