@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const ADMIN_PASSWORD = 'Daniil011235!';
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'store.json');
 
@@ -71,14 +72,30 @@ function ensureUser(id, label, password = '') {
 pruneDemoUsers();
 
 app.get('/api/users', (req, res) => {
+  const me = String(req.query.me || '');
   const search = String(req.query.search || '').toLowerCase();
   const store = readStore();
-  const users = store.users
-    .map((user) => sanitizeUser(user))
-    .filter((user) => {
-      if (!search) return true;
-      return user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
+
+  let users = store.users.map((user) => sanitizeUser(user));
+
+  if (me) {
+    const partnerIds = new Set();
+    store.messages.forEach((message) => {
+      if (message.fromId === me && message.toId !== me) {
+        partnerIds.add(String(message.toId));
+      }
+      if (message.toId === me && message.fromId !== me) {
+        partnerIds.add(String(message.fromId));
+      }
     });
+
+    users = users.filter((user) => user.id !== me && partnerIds.has(user.id));
+  }
+
+  users = users.filter((user) => {
+    if (!search) return true;
+    return user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
+  });
 
   res.json(users);
 });
@@ -93,7 +110,7 @@ app.post('/api/auth/register', (req, res) => {
   const store = readStore();
   const exists = store.users.some((user) => user.id === String(id));
   if (exists) {
-    return res.status(409).json({ error: 'This user id is already taken.' });
+    return res.status(409).json({ error: 'Пользователь с таким user-id уже зарегистрирован' });
   }
 
   ensureUser(String(id), String(label), String(password));
@@ -144,6 +161,66 @@ app.get('/api/auth/me', (req, res) => {
 
 app.post('/api/auth/logout', (req, res) => {
   res.clearCookie('sessionUserId', { path: '/' });
+  res.json({ ok: true });
+});
+
+function requireAdmin(req, res, next) {
+  const adminCookie = req.cookies?.adminSession;
+  if (adminCookie !== '1') {
+    return res.status(401).json({ error: 'Admin access required.' });
+  }
+  next();
+}
+
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body || {};
+  if (String(password) !== ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Invalid admin password.' });
+  }
+
+  res.cookie('adminSession', '1', {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  res.clearCookie('adminSession', { path: '/' });
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/me', (req, res) => {
+  const adminCookie = req.cookies?.adminSession;
+  res.json({ admin: adminCookie === '1' });
+});
+
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  const store = readStore();
+  res.json({ users: store.users.map((user) => sanitizeUser(user)) });
+});
+
+app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+  const id = String(req.params.id || '');
+  if (!id) {
+    return res.status(400).json({ error: 'Need user id.' });
+  }
+
+  const store = readStore();
+  store.users = store.users.filter((user) => user.id !== id);
+  store.messages = store.messages.filter((message) => message.fromId !== id && message.toId !== id);
+  saveStore(store);
+
+  res.json({ ok: true, deletedUserId: id });
+});
+
+app.delete('/api/admin/users', requireAdmin, (req, res) => {
+  const store = readStore();
+  store.users = [];
+  store.messages = [];
+  saveStore(store);
   res.json({ ok: true });
 });
 

@@ -14,6 +14,15 @@ const goToLoginBtn = document.getElementById('goToLoginBtn');
 const goToRegisterBtn = document.getElementById('goToRegisterBtn');
 const authToggleButtons = Array.from(document.querySelectorAll('.auth-toggle-btn'));
 
+const adminPage = document.getElementById('adminPage');
+const adminLoginForm = document.getElementById('adminLoginForm');
+const adminLoginSection = document.getElementById('adminLoginSection');
+const adminDashboard = document.getElementById('adminDashboard');
+const adminMessage = document.getElementById('adminMessage');
+const adminUserList = document.getElementById('adminUserList');
+const deleteAllUsersBtn = document.getElementById('deleteAllUsersBtn');
+const logoutAdminBtn = document.getElementById('logoutAdminBtn');
+
 const searchInput = document.getElementById('searchInput');
 const userList = document.getElementById('userList');
 const messagesBox = document.getElementById('messages');
@@ -180,7 +189,8 @@ async function refreshUnreadIndicators() {
 async function searchUsers() {
   if (!searchInput) return;
   const search = searchInput.value.trim();
-  const response = await fetch(`/api/users?search=${encodeURIComponent(search)}`);
+  const me = currentUser?.id || '';
+  const response = await fetch(`/api/users?search=${encodeURIComponent(search)}&me=${encodeURIComponent(me)}`);
   const users = await response.json();
   renderUsers(users);
   await refreshUnreadIndicators();
@@ -256,6 +266,60 @@ async function loadCurrentUser() {
   return data.user;
 }
 
+async function showAdminMessage(text, isError = false) {
+  if (!adminMessage) return;
+  adminMessage.textContent = text;
+  adminMessage.style.color = isError ? '#fca5a5' : '#93c5fd';
+}
+
+async function loadAdminUsers() {
+  if (!adminUserList) return;
+
+  const response = await fetch('/api/admin/users');
+  const data = await response.json();
+
+  if (!response.ok) {
+    showAdminMessage(data.error || 'Нет доступа к админке.', true);
+    return;
+  }
+
+  adminUserList.innerHTML = '';
+  data.users.forEach((user) => {
+    const card = document.createElement('div');
+    card.className = 'admin-user-card';
+    card.innerHTML = `<div><strong>${user.label}</strong><br /><span>${user.id}</span></div><button type="button" class="admin-delete-btn">Удалить</button>`;
+
+    card.querySelector('.admin-delete-btn').addEventListener('click', async () => {
+      const deleteResponse = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
+      const result = await deleteResponse.json();
+      if (!deleteResponse.ok) {
+        showAdminMessage(result.error || 'Не удалось удалить пользователя.', true);
+        return;
+      }
+      showAdminMessage(`Аккаунт ${user.id} удалён.`);
+      await loadAdminUsers();
+    });
+
+    adminUserList.appendChild(card);
+  });
+}
+
+async function checkAdminAccess() {
+  if (!adminPage) return;
+
+  const response = await fetch('/api/admin/me');
+  const data = await response.json();
+  if (!data.admin) {
+    adminLoginSection?.classList.add('active');
+    adminDashboard?.classList.remove('active');
+    return;
+  }
+
+  adminLoginSection?.classList.remove('active');
+  adminDashboard?.classList.add('active');
+  await loadAdminUsers();
+}
+
 async function bootChatPage() {
   if (!searchInput || !userList || !messagesBox) return;
 
@@ -280,6 +344,44 @@ if (authPage) {
   authToggleButtons.forEach((button) => {
     button.addEventListener('click', () => setAuthMode(button.dataset.mode));
   });
+}
+
+if (adminPage) {
+  adminLoginForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const password = adminLoginForm.querySelector('input[name="password"]').value.trim();
+    const response = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      showAdminMessage(data.error || 'Неверный пароль.', true);
+      return;
+    }
+
+    await checkAdminAccess();
+  });
+
+  deleteAllUsersBtn?.addEventListener('click', async () => {
+    const response = await fetch('/api/admin/users', { method: 'DELETE' });
+    const data = await response.json();
+    if (!response.ok) {
+      showAdminMessage(data.error || 'Не удалось удалить всех пользователей.', true);
+      return;
+    }
+    showAdminMessage('Все пользователи удалены.');
+    await loadAdminUsers();
+  });
+
+  logoutAdminBtn?.addEventListener('click', async () => {
+    await fetch('/api/admin/logout', { method: 'POST' });
+    await checkAdminAccess();
+  });
+
+  checkAdminAccess();
 }
 
 if (logoutBtn) {
