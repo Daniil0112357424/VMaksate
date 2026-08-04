@@ -30,6 +30,40 @@ body {
   margin: 0 0 16px;
 }
 
+.auth-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.auth-toggle-btn,
+.auth-secondary-btn {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.auth-toggle-btn {
+  background: #374151;
+}
+
+.auth-toggle-btn.active {
+  background: #2563eb;
+}
+
+.auth-panel {
+  display: none;
+}
+
+.auth-panel.active {
+  display: block;
+}
+
+.auth-secondary-btn {
+  background: #111827;
+  border: 1px solid #475569;
+}
+
 .auth-form {
   margin-bottom: 14px;
 }
@@ -100,6 +134,10 @@ button {
 }
 
 .user-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 10px;
   border-radius: 8px;
   background: #374151;
@@ -108,6 +146,24 @@ button {
 
 .user-item.active {
   outline: 2px solid #60a5fa;
+}
+
+.user-item-meta {
+  display: flex;
+  align-items: center;
+}
+
+.notification-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f59e0b;
+  opacity: 0;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+}
+
+.notification-dot.visible {
+  opacity: 1;
 }
 
 .chat-header {
