@@ -12,28 +12,41 @@
         <h1>ВМаксате</h1>
         <p class="auth-subtitle">Регистрация и вход в ваш аккаунт</p>
 
-        <form id="registerForm" class="auth-form">
-          <label class="block-label" for="registerId">Ваш user id</label>
-          <input id="registerId" name="id" placeholder="Например: user-42" required />
+        <div class="auth-toggle">
+          <button type="button" class="auth-toggle-btn active" data-mode="register">Регистрация</button>
+          <button type="button" class="auth-toggle-btn" data-mode="login">Войти</button>
+        </div>
 
-          <label class="block-label" for="registerLabel">Ваше имя</label>
-          <input id="registerLabel" name="label" placeholder="Например: Иван" required />
+        <section id="registerPanel" class="auth-panel active">
+          <form id="registerForm" class="auth-form">
+            <label class="block-label" for="registerId">Ваш user id</label>
+            <input id="registerId" name="id" placeholder="Например: user-42" required />
 
-          <label class="block-label" for="registerPassword">Пароль</label>
-          <input id="registerPassword" name="password" type="password" placeholder="Придумайте пароль" required />
+            <label class="block-label" for="registerLabel">Ваше имя</label>
+            <input id="registerLabel" name="label" placeholder="Например: Иван" required />
 
-          <button type="submit">Зарегистрироваться</button>
-        </form>
+            <label class="block-label" for="registerPassword">Пароль</label>
+            <input id="registerPassword" name="password" type="password" placeholder="Придумайте пароль" required />
 
-        <form id="loginForm" class="auth-form">
-          <label class="block-label" for="loginId">User id</label>
-          <input id="loginId" name="id" placeholder="Введите ваш id" required />
+            <button type="submit">Зарегистрироваться</button>
+          </form>
 
-          <label class="block-label" for="loginPassword">Пароль</label>
-          <input id="loginPassword" name="password" type="password" placeholder="Введите пароль" required />
+          <button type="button" id="goToLoginBtn" class="auth-secondary-btn">Войти</button>
+        </section>
 
-          <button type="submit">Войти</button>
-        </form>
+        <section id="loginPanel" class="auth-panel">
+          <form id="loginForm" class="auth-form">
+            <label class="block-label" for="loginId">User id</label>
+            <input id="loginId" name="id" placeholder="Введите ваш id" required />
+
+            <label class="block-label" for="loginPassword">Пароль</label>
+            <input id="loginPassword" name="password" type="password" placeholder="Введите пароль" required />
+
+            <button type="submit">Войти</button>
+          </form>
+
+          <button type="button" id="goToRegisterBtn" class="auth-secondary-btn">Регистрация</button>
+        </section>
 
         <div id="authMessage" class="auth-message"></div>
       </section>
