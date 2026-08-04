@@ -1,4 +1,10 @@
 {
-  "users": [],
+  "users": [
+    {
+      "id": "user-42",
+      "label": "Иван",
+      "password": "123"
+    }
+  ],
   "messages": []
 }
