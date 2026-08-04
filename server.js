@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,6 +9,7 @@ const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'store.json');
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 function ensureStore() {
@@ -30,27 +32,37 @@ function saveStore(store) {
   fs.writeFileSync(dataFile, JSON.stringify(store, null, 2));
 }
 
+function sanitizeUser(user) {
+  return {
+    id: user.id,
+    label: user.label,
+  };
+}
+
 function pruneDemoUsers() {
   const store = readStore();
-  const demoUsers = new Set(store.users.filter((u) => /^demo-/i.test(String(u.id))).map((u) => u.id));
+  const demoIds = new Set(store.users.filter((u) => /^demo-/i.test(String(u.id))).map((u) => u.id));
 
-  if (demoUsers.size === 0) {
+  if (demoIds.size === 0) {
     return;
   }
 
-  store.users = store.users.filter((user) => !demoUsers.has(user.id));
-  store.messages = store.messages.filter((message) => !demoUsers.has(message.fromId) && !demoUsers.has(message.toId));
+  store.users = store.users.filter((user) => !demoIds.has(user.id));
+  store.messages = store.messages.filter((message) => !demoIds.has(message.fromId) && !demoIds.has(message.toId));
   saveStore(store);
 }
 
-function ensureUser(id, label) {
+function ensureUser(id, label, password = '') {
   const store = readStore();
   const index = store.users.findIndex((user) => user.id === String(id));
 
   if (index >= 0) {
     store.users[index].label = String(label || store.users[index].label || id);
+    if (password) {
+      store.users[index].password = String(password);
+    }
   } else {
-    store.users.push({ id: String(id), label: String(label || id) });
+    store.users.push({ id: String(id), label: String(label || id), password: String(password || '') });
   }
 
   saveStore(store);
@@ -61,25 +73,78 @@ pruneDemoUsers();
 app.get('/api/users', (req, res) => {
   const search = String(req.query.search || '').toLowerCase();
   const store = readStore();
-  const users = store.users.filter((user) => {
-    if (!search) return true;
-    return user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
-  });
+  const users = store.users
+    .map((user) => sanitizeUser(user))
+    .filter((user) => {
+      if (!search) return true;
+      return user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
+    });
 
   res.json(users);
 });
 
-app.post('/api/users', (req, res) => {
-  const { id, label } = req.body || {};
+app.post('/api/auth/register', (req, res) => {
+  const { id, label, password } = req.body || {};
 
-  if (!id || !label) {
-    return res.status(400).json({ error: 'Need user id and label.' });
+  if (!id || !label || !password) {
+    return res.status(400).json({ error: 'Need id, label and password.' });
   }
 
-  ensureUser(String(id), String(label));
+  const store = readStore();
+  const exists = store.users.some((user) => user.id === String(id));
+  if (exists) {
+    return res.status(409).json({ error: 'This user id is already taken.' });
+  }
+
+  ensureUser(String(id), String(label), String(password));
+  res.cookie('sessionUserId', String(id), {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+
+  res.json({ ok: true, user: sanitizeUser({ id: String(id), label: String(label) }) });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const { id, password } = req.body || {};
+  if (!id || !password) {
+    return res.status(400).json({ error: 'Need id and password.' });
+  }
+
   const store = readStore();
   const user = store.users.find((entry) => entry.id === String(id));
-  res.json({ ok: true, user });
+  if (!user || user.password !== String(password)) {
+    return res.status(401).json({ error: 'Invalid user id or password.' });
+  }
+
+  res.cookie('sessionUserId', String(id), {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+  });
+
+  res.json({ ok: true, user: sanitizeUser(user) });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const sessionUserId = req.cookies?.sessionUserId;
+  if (!sessionUserId) {
+    return res.json({ user: null });
+  }
+
+  const store = readStore();
+  const user = store.users.find((entry) => entry.id === String(sessionUserId));
+  if (!user) {
+    return res.json({ user: null });
+  }
+
+  res.json({ user: sanitizeUser(user) });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.clearCookie('sessionUserId', { path: '/' });
+  res.json({ ok: true });
 });
 
 app.delete('/api/users/:id', (req, res) => {

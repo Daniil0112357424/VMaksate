@@ -1,43 +1,41 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ВМаксате Messenger</title>
+    <title>ВМаксате — Вход</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <section class="sidebar">
+    <main id="authPage" class="auth-shell">
+      <section class="auth-card">
         <h1>ВМаксате</h1>
+        <p class="auth-subtitle">Регистрация и вход в ваш аккаунт</p>
 
-        <label class="block-label" for="myId">Ваш user id</label>
-        <input id="myId" placeholder="Например: user-42" />
+        <form id="registerForm" class="auth-form">
+          <label class="block-label" for="registerId">Ваш user id</label>
+          <input id="registerId" name="id" placeholder="Например: user-42" required />
 
-        <label class="block-label" for="myName">Ваше имя</label>
-        <input id="myName" placeholder="Например: Иван" />
+          <label class="block-label" for="registerLabel">Ваше имя</label>
+          <input id="registerLabel" name="label" placeholder="Например: Иван" required />
 
-        <button id="createUserBtn">Сохранить профиль</button>
+          <label class="block-label" for="registerPassword">Пароль</label>
+          <input id="registerPassword" name="password" type="password" placeholder="Придумайте пароль" required />
 
-        <label class="block-label" for="searchInput">Поиск собеседника</label>
-        <input id="searchInput" placeholder="Ищите по user id или имени" />
-        <div id="userList" class="user-list"></div>
-      </section>
+          <button type="submit">Зарегистрироваться</button>
+        </form>
 
-      <section class="chat-panel">
-        <div class="chat-header">
-          <div>
-            <div class="caption">Диалог</div>
-            <strong id="chatPartner">Выберите собеседника</strong>
-          </div>
-        </div>
+        <form id="loginForm" class="auth-form">
+          <label class="block-label" for="loginId">User id</label>
+          <input id="loginId" name="id" placeholder="Введите ваш id" required />
 
-        <div id="messages" class="messages"></div>
+          <label class="block-label" for="loginPassword">Пароль</label>
+          <input id="loginPassword" name="password" type="password" placeholder="Введите пароль" required />
 
-        <div class="composer">
-          <input id="messageInput" placeholder="Напишите сообщение..." />
-          <button id="sendBtn">Отправить</button>
-        </div>
+          <button type="submit">Войти</button>
+        </form>
+
+        <div id="authMessage" class="auth-message"></div>
       </section>
     </main>
 
