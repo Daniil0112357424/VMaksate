@@ -2,12 +2,52 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const admin = require('firebase-admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = 'Daniil011235!';
 const dataDir = path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'store.json');
+const rawFirebaseEnv = String(process.env.FIREBASE_SERVICE_ACCOUNT || '');
+const firebaseKeyPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || '';
+
+let firebaseDb = null;
+let firebaseEnabled = false;
+
+function initFirebase() {
+  try {
+    if (!rawFirebaseEnv && !firebaseKeyPath) {
+      return;
+    }
+
+    let serviceAccount = null;
+    if (rawFirebaseEnv.trim().startsWith('{')) {
+      serviceAccount = JSON.parse(rawFirebaseEnv);
+    } else if (fs.existsSync(rawFirebaseEnv)) {
+      serviceAccount = JSON.parse(fs.readFileSync(rawFirebaseEnv, 'utf8'));
+    } else if (fs.existsSync(firebaseKeyPath)) {
+      serviceAccount = JSON.parse(fs.readFileSync(firebaseKeyPath, 'utf8'));
+    }
+
+    if (!serviceAccount) {
+      console.warn('Firebase credentials are not configured. Falling back to the local JSON store.');
+      return;
+    }
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    firebaseDb = admin.firestore();
+    firebaseEnabled = true;
+    console.log('Firebase Firestore initialized.');
+  } catch (error) {
+    console.warn('Firebase is unavailable. Falling back to the local JSON store:', error.message);
+    firebaseEnabled = false;
+  }
+}
+
+initFirebase();
 
 app.use(express.json());
 app.use(cookieParser());
@@ -23,12 +63,59 @@ function ensureStore() {
   }
 }
 
-function readStore() {
+async function readStore() {
+  if (firebaseEnabled && firebaseDb) {
+    const [usersSnap, messagesSnap] = await Promise.all([
+      firebaseDb.collection('users').get(),
+      firebaseDb.collection('messages').get(),
+    ]);
+
+    return {
+      users: usersSnap.docs.map((doc) => doc.data()),
+      messages: messagesSnap.docs.map((doc) => doc.data()),
+    };
+  }
+
   ensureStore();
   return JSON.parse(fs.readFileSync(dataFile, 'utf8'));
 }
 
-function saveStore(store) {
+async function saveStore(store) {
+  if (firebaseEnabled && firebaseDb) {
+    const users = Array.isArray(store.users) ? store.users : [];
+    const messages = Array.isArray(store.messages) ? store.messages : [];
+
+    const usersRef = firebaseDb.collection('users');
+    const messagesRef = firebaseDb.collection('messages');
+
+    const userBatch = firebaseDb.batch();
+    const usersSnapshot = await usersRef.get();
+    usersSnapshot.docs.forEach((doc) => userBatch.delete(doc.ref));
+    users.forEach((user) => {
+      userBatch.set(usersRef.doc(String(user.id)), {
+        id: String(user.id),
+        label: String(user.label || user.id),
+        password: String(user.password || ''),
+      });
+    });
+    await userBatch.commit();
+
+    const messageBatch = firebaseDb.batch();
+    const messagesSnapshot = await messagesRef.get();
+    messagesSnapshot.docs.forEach((doc) => messageBatch.delete(doc.ref));
+    messages.forEach((message) => {
+      messageBatch.set(messagesRef.doc(String(message.id)), {
+        id: Number(message.id) || Date.now() + Math.floor(Math.random() * 1000),
+        fromId: String(message.fromId),
+        toId: String(message.toId),
+        text: String(message.text),
+        createdAt: String(message.createdAt),
+      });
+    });
+    await messageBatch.commit();
+    return;
+  }
+
   ensureStore();
   fs.writeFileSync(dataFile, JSON.stringify(store, null, 2));
 }
@@ -40,8 +127,8 @@ function sanitizeUser(user) {
   };
 }
 
-function pruneDemoUsers() {
-  const store = readStore();
+async function pruneDemoUsers() {
+  const store = await readStore();
   const demoIds = new Set(store.users.filter((u) => /^demo-/i.test(String(u.id))).map((u) => u.id));
 
   if (demoIds.size === 0) {
@@ -50,11 +137,11 @@ function pruneDemoUsers() {
 
   store.users = store.users.filter((user) => !demoIds.has(user.id));
   store.messages = store.messages.filter((message) => !demoIds.has(message.fromId) && !demoIds.has(message.toId));
-  saveStore(store);
+  await saveStore(store);
 }
 
-function ensureUser(id, label, password = '') {
-  const store = readStore();
+async function ensureUser(id, label, password = '') {
+  const store = await readStore();
   const index = store.users.findIndex((user) => user.id === String(id));
 
   if (index >= 0) {
@@ -66,15 +153,17 @@ function ensureUser(id, label, password = '') {
     store.users.push({ id: String(id), label: String(label || id), password: String(password || '') });
   }
 
-  saveStore(store);
+  await saveStore(store);
 }
 
-pruneDemoUsers();
+pruneDemoUsers().catch((error) => {
+  console.warn('Unable to prune demo users:', error.message);
+});
 
-app.get('/api/users', (req, res) => {
+app.get('/api/users', async (req, res) => {
   const me = String(req.query.me || '');
   const search = String(req.query.search || '').toLowerCase();
-  const store = readStore();
+  const store = await readStore();
 
   let users = store.users.map((user) => sanitizeUser(user));
 
@@ -100,20 +189,20 @@ app.get('/api/users', (req, res) => {
   res.json(users);
 });
 
-app.post('/api/auth/register', (req, res) => {
+app.post('/api/auth/register', async (req, res) => {
   const { id, label, password } = req.body || {};
 
   if (!id || !label || !password) {
     return res.status(400).json({ error: 'Need id, label and password.' });
   }
 
-  const store = readStore();
+  const store = await readStore();
   const exists = store.users.some((user) => user.id === String(id));
   if (exists) {
     return res.status(409).json({ error: 'Пользователь с таким user-id уже зарегистрирован' });
   }
 
-  ensureUser(String(id), String(label), String(password));
+  await ensureUser(String(id), String(label), String(password));
   res.cookie('sessionUserId', String(id), {
     httpOnly: true,
     sameSite: 'lax',
@@ -123,13 +212,13 @@ app.post('/api/auth/register', (req, res) => {
   res.json({ ok: true, user: sanitizeUser({ id: String(id), label: String(label) }) });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   const { id, password } = req.body || {};
   if (!id || !password) {
     return res.status(400).json({ error: 'Need id and password.' });
   }
 
-  const store = readStore();
+  const store = await readStore();
   const user = store.users.find((entry) => entry.id === String(id));
   if (!user || user.password !== String(password)) {
     return res.status(401).json({ error: 'Invalid user id or password.' });
@@ -144,13 +233,13 @@ app.post('/api/auth/login', (req, res) => {
   res.json({ ok: true, user: sanitizeUser(user) });
 });
 
-app.get('/api/auth/me', (req, res) => {
+app.get('/api/auth/me', async (req, res) => {
   const sessionUserId = req.cookies?.sessionUserId;
   if (!sessionUserId) {
     return res.json({ user: null });
   }
 
-  const store = readStore();
+  const store = await readStore();
   const user = store.users.find((entry) => entry.id === String(sessionUserId));
   if (!user) {
     return res.json({ user: null });
@@ -197,56 +286,56 @@ app.get('/api/admin/me', (req, res) => {
   res.json({ admin: adminCookie === '1' });
 });
 
-app.get('/api/admin/users', requireAdmin, (req, res) => {
-  const store = readStore();
+app.get('/api/admin/users', requireAdmin, async (req, res) => {
+  const store = await readStore();
   res.json({ users: store.users.map((user) => sanitizeUser(user)) });
 });
 
-app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
+app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
   const id = String(req.params.id || '');
   if (!id) {
     return res.status(400).json({ error: 'Need user id.' });
   }
 
-  const store = readStore();
+  const store = await readStore();
   store.users = store.users.filter((user) => user.id !== id);
   store.messages = store.messages.filter((message) => message.fromId !== id && message.toId !== id);
-  saveStore(store);
+  await saveStore(store);
 
   res.json({ ok: true, deletedUserId: id });
 });
 
-app.delete('/api/admin/users', requireAdmin, (req, res) => {
-  const store = readStore();
+app.delete('/api/admin/users', requireAdmin, async (req, res) => {
+  const store = await readStore();
   store.users = [];
   store.messages = [];
-  saveStore(store);
+  await saveStore(store);
   res.json({ ok: true });
 });
 
-app.delete('/api/users/:id', (req, res) => {
+app.delete('/api/users/:id', async (req, res) => {
   const id = String(req.params.id || '');
   if (!id) {
     return res.status(400).json({ error: 'Need user id.' });
   }
 
-  const store = readStore();
+  const store = await readStore();
   store.users = store.users.filter((user) => user.id !== id);
   store.messages = store.messages.filter((message) => message.fromId !== id && message.toId !== id);
-  saveStore(store);
+  await saveStore(store);
 
   res.json({ ok: true, deletedUserId: id });
 });
 
-app.delete('/api/users', (req, res) => {
-  const store = readStore();
+app.delete('/api/users', async (req, res) => {
+  const store = await readStore();
   store.users = [];
   store.messages = [];
-  saveStore(store);
+  await saveStore(store);
   res.json({ ok: true });
 });
 
-app.get('/api/chat', (req, res) => {
+app.get('/api/chat', async (req, res) => {
   const me = String(req.query.me || '');
   const other = String(req.query.other || '');
 
@@ -254,10 +343,10 @@ app.get('/api/chat', (req, res) => {
     return res.status(400).json({ error: 'Need both ids.' });
   }
 
-  ensureUser(me, me);
-  ensureUser(other, other);
+  await ensureUser(me, me);
+  await ensureUser(other, other);
 
-  const store = readStore();
+  const store = await readStore();
   const messages = store.messages
     .filter((item) => {
       return (item.fromId === me && item.toId === other) || (item.fromId === other && item.toId === me);
@@ -267,17 +356,17 @@ app.get('/api/chat', (req, res) => {
   res.json({ chatKey: [me, other].sort().join('::'), messages });
 });
 
-app.post('/api/chat', (req, res) => {
+app.post('/api/chat', async (req, res) => {
   const { fromId, toId, text } = req.body || {};
 
   if (!fromId || !toId || !text) {
     return res.status(400).json({ error: 'Need fromId, toId and text.' });
   }
 
-  ensureUser(String(fromId), String(fromId));
-  ensureUser(String(toId), String(toId));
+  await ensureUser(String(fromId), String(fromId));
+  await ensureUser(String(toId), String(toId));
 
-  const store = readStore();
+  const store = await readStore();
   const message = {
     id: Date.now() + Math.floor(Math.random() * 1000),
     fromId: String(fromId),
@@ -287,7 +376,7 @@ app.post('/api/chat', (req, res) => {
   };
 
   store.messages.push(message);
-  saveStore(store);
+  await saveStore(store);
 
   res.json({ ok: true, message });
 });
