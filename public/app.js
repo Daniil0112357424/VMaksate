@@ -166,6 +166,33 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+function getAvatarBg(name) {
+  const colors = [
+    'linear-gradient(135deg, #2563eb, #3b82f6)',
+    'linear-gradient(135deg, #7c3aed, #8b5cf6)',
+    'linear-gradient(135deg, #059669, #10b981)',
+    'linear-gradient(135deg, #d97706, #f59e0b)',
+    'linear-gradient(135deg, #dc2626, #ef4444)',
+    'linear-gradient(135deg, #db2777, #ec4899)',
+  ];
+  let hash = 0;
+  const str = String(name || '');
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function formatTime(isoStr) {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
+}
+
 let currentUser = null;
 let selectedPartner = null;
 let currentUserList = [];
@@ -196,10 +223,12 @@ const searchBtn = document.getElementById('searchBtn');
 const userList = document.getElementById('userList');
 const messagesBox = document.getElementById('messages');
 const chatPartner = document.getElementById('chatPartner');
+const partnerAvatar = document.getElementById('partnerAvatar');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const currentUserBadge = document.getElementById('currentUserBadge');
+const mobileBackBtn = document.getElementById('mobileBackBtn');
 
 function renderCurrentUserBadge() {
   if (!currentUserBadge) return;
@@ -215,6 +244,21 @@ function renderCurrentUserBadge() {
       <div class="user-badge-sub">${escapeHtml(currentUser.label)}</div>
     </div>
   `;
+}
+
+function updateChatHeader(user) {
+  if (!chatPartner) return;
+  if (!user) {
+    chatPartner.textContent = t('selectPartnerPlaceholder');
+    if (partnerAvatar) partnerAvatar.classList.add('hidden');
+    return;
+  }
+  chatPartner.textContent = `${user.label} (${user.id})`;
+  if (partnerAvatar) {
+    partnerAvatar.classList.remove('hidden');
+    partnerAvatar.style.background = getAvatarBg(user.label || user.id);
+    partnerAvatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
+  }
 }
 
 function applyLanguage(lang) {
@@ -245,8 +289,10 @@ function applyLanguage(lang) {
     renderCurrentUserBadge();
   }
 
-  if (chatPartner && !selectedPartner) {
-    chatPartner.textContent = t('selectPartnerPlaceholder');
+  if (selectedPartner) {
+    updateChatHeader(selectedPartner);
+  } else {
+    updateChatHeader(null);
   }
 
   if (adminUserList && adminPage && adminDashboard?.classList.contains('active')) {
@@ -345,11 +391,27 @@ function renderUsers(users) {
   currentUserList = users;
 
   users.forEach((user) => {
-    const button = document.createElement('div');
-    button.className = 'user-item';
+    const item = document.createElement('div');
+    item.className = `user-item ${selectedPartner && selectedPartner.id === user.id ? 'active' : ''}`;
 
-    const text = document.createElement('span');
-    text.textContent = `${user.label} (${user.id})`;
+    const avatar = document.createElement('div');
+    avatar.className = 'user-avatar-circle';
+    avatar.style.background = getAvatarBg(user.label || user.id);
+    avatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
+
+    const info = document.createElement('div');
+    info.className = 'user-item-info';
+
+    const name = document.createElement('div');
+    name.className = 'user-item-name';
+    name.textContent = user.label;
+
+    const idTag = document.createElement('div');
+    idTag.className = 'user-item-id';
+    idTag.textContent = user.id;
+
+    info.appendChild(name);
+    info.appendChild(idTag);
 
     const meta = document.createElement('div');
     meta.className = 'user-item-meta';
@@ -361,20 +423,29 @@ function renderUsers(users) {
     }
 
     meta.appendChild(dot);
-    button.appendChild(text);
-    button.appendChild(meta);
 
-    button.addEventListener('click', () => {
+    item.appendChild(avatar);
+    item.appendChild(info);
+    item.appendChild(meta);
+
+    item.addEventListener('click', () => {
       selectedPartner = user;
-      chatPartner.textContent = `${user.label} (${user.id})`;
+      updateChatHeader(user);
       document.querySelectorAll('.user-item').forEach((el) => el.classList.remove('active'));
-      button.classList.add('active');
+      item.classList.add('active');
       unreadUsers.delete(user.id);
       dot.classList.remove('visible');
+
+      const appShell = document.getElementById('appShell');
+      if (appShell) {
+        appShell.classList.add('mobile-show-chat');
+      }
+
       loadMessages();
       startChatRefresh();
     });
-    userList.appendChild(button);
+
+    userList.appendChild(item);
   });
 }
 
@@ -426,20 +497,71 @@ setInterval(() => {
 }, 2000);
 
 async function loadMessages() {
-  if (!currentUser || !selectedPartner || !messagesBox) return;
+  if (!currentUser || !messagesBox) return;
+
+  if (!selectedPartner) {
+    messagesBox.innerHTML = `
+      <div class="empty-chat-state">
+        <div class="empty-chat-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </div>
+        <p>${escapeHtml(t('selectPartnerPlaceholder'))}</p>
+      </div>
+    `;
+    return;
+  }
 
   const response = await fetch(`/api/chat?me=${encodeURIComponent(currentUser.id)}&other=${encodeURIComponent(selectedPartner.id)}`);
   const data = await response.json();
   messagesBox.innerHTML = '';
 
-  data.messages.forEach((item) => {
+  const messages = data.messages || [];
+
+  if (messages.length === 0) {
+    messagesBox.innerHTML = `
+      <div class="empty-chat-state">
+        <div class="empty-chat-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </div>
+        <p>${escapeHtml(t('phMessage'))}</p>
+      </div>
+    `;
+    return;
+  }
+
+  messages.forEach((item) => {
+    const isMe = item.fromId === currentUser.id;
     const div = document.createElement('div');
-    div.className = `message ${item.fromId === currentUser.id ? 'me' : ''}`;
-    div.textContent = `${item.fromId}: ${item.text}`;
+    div.className = `message ${isMe ? 'me' : 'other'}`;
+
+    if (!isMe) {
+      const sender = document.createElement('div');
+      sender.className = 'message-sender';
+      sender.textContent = selectedPartner.label || item.fromId;
+      div.appendChild(sender);
+    }
+
+    const text = document.createElement('div');
+    text.className = 'message-text';
+    text.textContent = item.text;
+    div.appendChild(text);
+
+    if (item.createdAt) {
+      const time = document.createElement('div');
+      time.className = 'message-time';
+      time.textContent = formatTime(item.createdAt);
+      div.appendChild(time);
+    }
+
     messagesBox.appendChild(div);
   });
 
-  const lastMessage = data.messages[data.messages.length - 1];
+  const lastMessage = messages[messages.length - 1];
   if (lastMessage) {
     lastSeenMessageIds.set(selectedPartner.id, lastMessage.id);
     unreadUsers.delete(selectedPartner.id);
@@ -554,9 +676,19 @@ async function bootChatPage() {
   }
 
   renderCurrentUserBadge();
-  chatPartner.textContent = t('selectPartnerPlaceholder');
+  updateChatHeader(null);
+  loadMessages();
   searchUsers();
   startChatRefresh();
+}
+
+if (mobileBackBtn) {
+  mobileBackBtn.addEventListener('click', () => {
+    const appShell = document.getElementById('appShell');
+    if (appShell) {
+      appShell.classList.remove('mobile-show-chat');
+    }
+  });
 }
 
 document.querySelectorAll('.langSelect').forEach((select) => {
