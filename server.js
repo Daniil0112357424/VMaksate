@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const cookieParser = require('cookie-parser');
 const admin = require('firebase-admin');
 
@@ -53,7 +54,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-function ensureStore() {
+function ensureStoreFile() {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
@@ -63,62 +64,105 @@ function ensureStore() {
   }
 }
 
-async function readStore() {
-  if (firebaseEnabled && firebaseDb) {
-    const [usersSnap, messagesSnap] = await Promise.all([
-      firebaseDb.collection('users').get(),
-      firebaseDb.collection('messages').get(),
-    ]);
+let memoryStore = { users: [], messages: [] };
 
-    return {
-      users: usersSnap.docs.map((doc) => doc.data()),
-      messages: messagesSnap.docs.map((doc) => doc.data()),
-    };
+async function readStoreFromDiskOrDb() {
+  if (firebaseEnabled && firebaseDb) {
+    try {
+      const [usersSnap, messagesSnap] = await Promise.all([
+        firebaseDb.collection('users').get(),
+        firebaseDb.collection('messages').get(),
+      ]);
+
+      return {
+        users: usersSnap.docs.map((doc) => doc.data()),
+        messages: messagesSnap.docs.map((doc) => doc.data()),
+      };
+    } catch (e) {
+      console.warn('Failed to read from Firestore:', e.message);
+    }
   }
 
-  ensureStore();
-  return JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+  ensureStoreFile();
+  try {
+    const raw = fs.readFileSync(dataFile, 'utf8');
+    return JSON.parse(raw);
+  } catch (e) {
+    return { users: [], messages: [] };
+  }
 }
 
-async function saveStore(store) {
+let isSaving = false;
+let savePending = false;
+
+async function saveStoreToDiskOrDb(storeToSave) {
   if (firebaseEnabled && firebaseDb) {
-    const users = Array.isArray(store.users) ? store.users : [];
-    const messages = Array.isArray(store.messages) ? store.messages : [];
+    const users = Array.isArray(storeToSave.users) ? storeToSave.users : [];
+    const messages = Array.isArray(storeToSave.messages) ? storeToSave.messages : [];
 
     const usersRef = firebaseDb.collection('users');
     const messagesRef = firebaseDb.collection('messages');
 
     const userBatch = firebaseDb.batch();
-    const usersSnapshot = await usersRef.get();
-    usersSnapshot.docs.forEach((doc) => userBatch.delete(doc.ref));
     users.forEach((user) => {
       userBatch.set(usersRef.doc(String(user.id)), {
         id: String(user.id),
         label: String(user.label || user.id),
         password: String(user.password || ''),
-      });
+      }, { merge: true });
     });
     await userBatch.commit();
 
     const messageBatch = firebaseDb.batch();
-    const messagesSnapshot = await messagesRef.get();
-    messagesSnapshot.docs.forEach((doc) => messageBatch.delete(doc.ref));
     messages.forEach((message) => {
       messageBatch.set(messagesRef.doc(String(message.id)), {
-        id: Number(message.id) || Date.now() + Math.floor(Math.random() * 1000),
+        id: String(message.id),
         fromId: String(message.fromId),
         toId: String(message.toId),
         text: String(message.text),
         createdAt: String(message.createdAt),
-      });
+      }, { merge: true });
     });
     await messageBatch.commit();
     return;
   }
 
-  ensureStore();
-  fs.writeFileSync(dataFile, JSON.stringify(store, null, 2));
+  ensureStoreFile();
+  fs.writeFileSync(dataFile, JSON.stringify(storeToSave, null, 2));
 }
+
+async function persistStore() {
+  if (isSaving) {
+    savePending = true;
+    return;
+  }
+
+  isSaving = true;
+  savePending = false;
+
+  try {
+    const snapshot = {
+      users: JSON.parse(JSON.stringify(memoryStore.users)),
+      messages: JSON.parse(JSON.stringify(memoryStore.messages)),
+    };
+    await saveStoreToDiskOrDb(snapshot);
+  } catch (error) {
+    console.error('Unable to persist store:', error.message);
+  } finally {
+    isSaving = false;
+    if (savePending) {
+      persistStore();
+    }
+  }
+}
+
+const storeReady = readStoreFromDiskOrDb().then((data) => {
+  memoryStore = {
+    users: Array.isArray(data.users) ? data.users : [],
+    messages: Array.isArray(data.messages) ? data.messages : [],
+  };
+  pruneDemoUsers();
+}).catch((err) => console.error('Initial store load failed:', err));
 
 function sanitizeUser(user) {
   return {
@@ -127,52 +171,61 @@ function sanitizeUser(user) {
   };
 }
 
-async function pruneDemoUsers() {
-  const store = await readStore();
-  const demoIds = new Set(store.users.filter((u) => /^demo-/i.test(String(u.id))).map((u) => u.id));
+function pruneDemoUsers() {
+  const demoIds = new Set(memoryStore.users.filter((u) => /^demo-/i.test(String(u.id))).map((u) => u.id));
+  if (demoIds.size === 0) return;
 
-  if (demoIds.size === 0) {
-    return;
-  }
-
-  store.users = store.users.filter((user) => !demoIds.has(user.id));
-  store.messages = store.messages.filter((message) => !demoIds.has(message.fromId) && !demoIds.has(message.toId));
-  await saveStore(store);
+  memoryStore.users = memoryStore.users.filter((user) => !demoIds.has(user.id));
+  memoryStore.messages = memoryStore.messages.filter((message) => !demoIds.has(message.fromId) && !demoIds.has(message.toId));
+  persistStore();
 }
 
-async function ensureUser(id, label, password = '') {
-  const store = await readStore();
-  const index = store.users.findIndex((user) => user.id === String(id));
+function ensureUser(id, label, password = '') {
+  const strId = String(id);
+  const index = memoryStore.users.findIndex((user) => user.id === strId);
 
   if (index >= 0) {
-    store.users[index].label = String(label || store.users[index].label || id);
-    if (password) {
-      store.users[index].password = String(password);
+    let changed = false;
+    if (label && memoryStore.users[index].label !== String(label)) {
+      memoryStore.users[index].label = String(label);
+      changed = true;
+    }
+    if (password && memoryStore.users[index].password !== String(password)) {
+      memoryStore.users[index].password = String(password);
+      changed = true;
+    }
+    if (changed) {
+      persistStore();
     }
   } else {
-    store.users.push({ id: String(id), label: String(label || id), password: String(password || '') });
+    memoryStore.users.push({
+      id: strId,
+      label: String(label || strId),
+      password: String(password || ''),
+    });
+    persistStore();
   }
-
-  await saveStore(store);
 }
-
-pruneDemoUsers().catch((error) => {
-  console.warn('Unable to prune demo users:', error.message);
-});
 
 app.get('/api/users', async (req, res) => {
   const me = String(req.query.me || '');
   const search = String(req.query.search || '').trim().toLowerCase();
-  const store = await readStore();
+  await storeReady;
 
-  let users = store.users
+  const storeUsers = firebaseEnabled && firebaseDb
+    ? (await firebaseDb.collection('users').get()).docs.map((doc) => doc.data())
+    : memoryStore.users;
+  const storeMessages = firebaseEnabled && firebaseDb && !search
+    ? (await firebaseDb.collection('messages').get()).docs.map((doc) => doc.data())
+    : memoryStore.messages;
+  let users = storeUsers
     .map((user) => sanitizeUser(user))
     .filter((user) => user.id !== me);
 
   if (!search) {
     if (me) {
       const partnerIds = new Set();
-      store.messages.forEach((message) => {
+      storeMessages.forEach((message) => {
         if (message.fromId === me && message.toId !== me) {
           partnerIds.add(String(message.toId));
         }
@@ -201,13 +254,25 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Need id, label and password.' });
   }
 
-  const store = await readStore();
-  const exists = store.users.some((user) => user.id === String(id));
-  if (exists) {
-    return res.status(409).json({ error: 'Пользователь с таким user-id уже зарегистрирован' });
+  await storeReady;
+  if (firebaseEnabled && firebaseDb) {
+    try {
+      await firebaseDb.collection('users').doc(String(id)).create({
+        id: String(id), label: String(label), password: String(password),
+      });
+    } catch (error) {
+      if (error.code === 6) {
+        return res.status(409).json({ error: 'Пользователь с таким user-id уже зарегистрирован' });
+      }
+      throw error;
+    }
+  } else {
+    const exists = memoryStore.users.some((user) => user.id === String(id));
+    if (exists) {
+      return res.status(409).json({ error: 'Пользователь с таким user-id уже зарегистрирован' });
+    }
+    ensureUser(String(id), String(label), String(password));
   }
-
-  await ensureUser(String(id), String(label), String(password));
   res.cookie('sessionUserId', String(id), {
     httpOnly: true,
     sameSite: 'lax',
@@ -223,8 +288,10 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(400).json({ error: 'Need id and password.' });
   }
 
-  const store = await readStore();
-  const user = store.users.find((entry) => entry.id === String(id));
+  await storeReady;
+  const user = firebaseEnabled && firebaseDb
+    ? (await firebaseDb.collection('users').doc(String(id)).get()).data()
+    : memoryStore.users.find((entry) => entry.id === String(id));
   if (!user || user.password !== String(password)) {
     return res.status(401).json({ error: 'Invalid user id or password.' });
   }
@@ -244,8 +311,10 @@ app.get('/api/auth/me', async (req, res) => {
     return res.json({ user: null });
   }
 
-  const store = await readStore();
-  const user = store.users.find((entry) => entry.id === String(sessionUserId));
+  await storeReady;
+  const user = firebaseEnabled && firebaseDb
+    ? (await firebaseDb.collection('users').doc(String(sessionUserId)).get()).data()
+    : memoryStore.users.find((entry) => entry.id === String(sessionUserId));
   if (!user) {
     return res.json({ user: null });
   }
@@ -291,52 +360,47 @@ app.get('/api/admin/me', (req, res) => {
   res.json({ admin: adminCookie === '1' });
 });
 
-app.get('/api/admin/users', requireAdmin, async (req, res) => {
-  const store = await readStore();
-  res.json({ users: store.users.map((user) => sanitizeUser(user)) });
+app.get('/api/admin/users', requireAdmin, (req, res) => {
+  res.json({ users: memoryStore.users.map((user) => sanitizeUser(user)) });
 });
 
-app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/users/:id', requireAdmin, (req, res) => {
   const id = String(req.params.id || '');
   if (!id) {
     return res.status(400).json({ error: 'Need user id.' });
   }
 
-  const store = await readStore();
-  store.users = store.users.filter((user) => user.id !== id);
-  store.messages = store.messages.filter((message) => message.fromId !== id && message.toId !== id);
-  await saveStore(store);
+  memoryStore.users = memoryStore.users.filter((user) => user.id !== id);
+  memoryStore.messages = memoryStore.messages.filter((message) => message.fromId !== id && message.toId !== id);
+  persistStore();
 
   res.json({ ok: true, deletedUserId: id });
 });
 
-app.delete('/api/admin/users', requireAdmin, async (req, res) => {
-  const store = await readStore();
-  store.users = [];
-  store.messages = [];
-  await saveStore(store);
+app.delete('/api/admin/users', requireAdmin, (req, res) => {
+  memoryStore.users = [];
+  memoryStore.messages = [];
+  persistStore();
   res.json({ ok: true });
 });
 
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', (req, res) => {
   const id = String(req.params.id || '');
   if (!id) {
     return res.status(400).json({ error: 'Need user id.' });
   }
 
-  const store = await readStore();
-  store.users = store.users.filter((user) => user.id !== id);
-  store.messages = store.messages.filter((message) => message.fromId !== id && message.toId !== id);
-  await saveStore(store);
+  memoryStore.users = memoryStore.users.filter((user) => user.id !== id);
+  memoryStore.messages = memoryStore.messages.filter((message) => message.fromId !== id && message.toId !== id);
+  persistStore();
 
   res.json({ ok: true, deletedUserId: id });
 });
 
-app.delete('/api/users', async (req, res) => {
-  const store = await readStore();
-  store.users = [];
-  store.messages = [];
-  await saveStore(store);
+app.delete('/api/users', (req, res) => {
+  memoryStore.users = [];
+  memoryStore.messages = [];
+  persistStore();
   res.json({ ok: true });
 });
 
@@ -348,11 +412,14 @@ app.get('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'Need both ids.' });
   }
 
-  await ensureUser(me, me);
-  await ensureUser(other, other);
+  await storeReady;
 
-  const store = await readStore();
-  const messages = store.messages
+  // Never serve chat history from the process cache when Firestore is enabled:
+  // Railway can route the two users' requests to different server instances.
+  const allMessages = firebaseEnabled && firebaseDb
+    ? (await firebaseDb.collection('messages').get()).docs.map((doc) => doc.data())
+    : memoryStore.messages;
+  const messages = allMessages
     .filter((item) => {
       return (item.fromId === me && item.toId === other) || (item.fromId === other && item.toId === me);
     })
@@ -368,20 +435,30 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'Need fromId, toId and text.' });
   }
 
-  await ensureUser(String(fromId), String(fromId));
-  await ensureUser(String(toId), String(toId));
+  await storeReady;
 
-  const store = await readStore();
   const message = {
-    id: Date.now() + Math.floor(Math.random() * 1000),
+    id: randomUUID(),
     fromId: String(fromId),
     toId: String(toId),
     text: String(text),
     createdAt: new Date().toISOString(),
   };
 
-  store.messages.push(message);
-  await saveStore(store);
+  if (firebaseEnabled && firebaseDb) {
+    // A message is one independent document. Replacing the entire collection
+    // caused concurrent requests to delete each other's messages.
+    await Promise.all([
+      firebaseDb.collection('messages').doc(message.id).set(message),
+      firebaseDb.collection('users').doc(String(fromId)).set({ id: String(fromId) }, { merge: true }),
+      firebaseDb.collection('users').doc(String(toId)).set({ id: String(toId) }, { merge: true }),
+    ]);
+  } else {
+    ensureUser(String(fromId), String(fromId));
+    ensureUser(String(toId), String(toId));
+    memoryStore.messages.push(message);
+    persistStore();
+  }
 
   res.json({ ok: true, message });
 });
