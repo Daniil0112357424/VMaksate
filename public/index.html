@@ -2,15 +2,25 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title data-i18n="appTitle">ВМаксате — Вход</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main id="authPage" class="auth-shell">
       <section class="auth-card">
         <div class="card-header">
-          <h1 data-i18n="appTitle">ВМаксате</h1>
+          <div class="brand-logo">
+            <div class="brand-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <h1 data-i18n="appTitle">ВМаксате</h1>
+          </div>
           <div class="lang-switcher">
             <select class="langSelect lang-select" aria-label="Language selector">
               <option value="ru">🇷🇺 RU</option>
@@ -28,16 +38,22 @@
 
         <section id="registerPanel" class="auth-panel active">
           <form id="registerForm" class="auth-form">
-            <label class="block-label" for="registerId" data-i18n="labelYourUserId">Ваш user id</label>
-            <input id="registerId" name="id" data-i18n-ph="phRegisterId" placeholder="Например: user-42" required />
+            <div class="input-group">
+              <label class="block-label" for="registerId" data-i18n="labelYourUserId">Ваш user id</label>
+              <input id="registerId" name="id" data-i18n-ph="phRegisterId" placeholder="Например: user-42" required autocomplete="username" />
+            </div>
 
-            <label class="block-label" for="registerLabel" data-i18n="labelYourName">Ваше имя</label>
-            <input id="registerLabel" name="label" data-i18n-ph="phRegisterLabel" placeholder="Например: Иван" required />
+            <div class="input-group">
+              <label class="block-label" for="registerLabel" data-i18n="labelYourName">Ваше имя</label>
+              <input id="registerLabel" name="label" data-i18n-ph="phRegisterLabel" placeholder="Например: Иван" required autocomplete="name" />
+            </div>
 
-            <label class="block-label" for="registerPassword" data-i18n="labelPassword">Пароль</label>
-            <input id="registerPassword" name="password" type="password" data-i18n-ph="phRegisterPassword" placeholder="Придумайте пароль" required />
+            <div class="input-group">
+              <label class="block-label" for="registerPassword" data-i18n="labelPassword">Пароль</label>
+              <input id="registerPassword" name="password" type="password" data-i18n-ph="phRegisterPassword" placeholder="Придумайте пароль" required autocomplete="new-password" />
+            </div>
 
-            <button type="submit" data-i18n="btnRegister">Зарегистрироваться</button>
+            <button type="submit" class="primary-btn" data-i18n="btnRegister">Зарегистрироваться</button>
           </form>
 
           <button type="button" id="goToLoginBtn" class="auth-secondary-btn" data-i18n="tabLogin">Войти</button>
@@ -45,13 +61,17 @@
 
         <section id="loginPanel" class="auth-panel">
           <form id="loginForm" class="auth-form">
-            <label class="block-label" for="loginId" data-i18n="labelUserId">User id</label>
-            <input id="loginId" name="id" data-i18n-ph="phLoginId" placeholder="Введите ваш id" required />
+            <div class="input-group">
+              <label class="block-label" for="loginId" data-i18n="labelUserId">User id</label>
+              <input id="loginId" name="id" data-i18n-ph="phLoginId" placeholder="Введите ваш id" required autocomplete="username" />
+            </div>
 
-            <label class="block-label" for="loginPassword" data-i18n="labelPassword">Пароль</label>
-            <input id="loginPassword" name="password" type="password" data-i18n-ph="phLoginPassword" placeholder="Введите пароль" required />
+            <div class="input-group">
+              <label class="block-label" for="loginPassword" data-i18n="labelPassword">Пароль</label>
+              <input id="loginPassword" name="password" type="password" data-i18n-ph="phLoginPassword" placeholder="Введите пароль" required autocomplete="current-password" />
+            </div>
 
-            <button type="submit" data-i18n="btnLogin">Войти</button>
+            <button type="submit" class="primary-btn" data-i18n="btnLogin">Войти</button>
           </form>
 
           <button type="button" id="goToRegisterBtn" class="auth-secondary-btn" data-i18n="tabRegister">Регистрация</button>

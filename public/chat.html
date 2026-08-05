@@ -2,16 +2,26 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title data-i18n="appTitle">ВМаксате Messenger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="app-shell">
+    <main class="app-shell" id="appShell">
       <section class="sidebar">
         <div class="sidebar-top">
           <div class="card-header">
-            <h1 data-i18n="appTitle">ВМаксате</h1>
+            <div class="brand-logo">
+              <div class="brand-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </div>
+              <h1 data-i18n="appTitle">ВМаксате</h1>
+            </div>
             <div class="lang-switcher">
               <select class="langSelect lang-select" aria-label="Language selector">
                 <option value="ru">🇷🇺 RU</option>
@@ -21,30 +31,45 @@
             </div>
           </div>
           <div id="currentUserBadge" class="current-user-badge"></div>
-          <button id="logoutBtn" data-i18n="logoutBtn">Выйти</button>
+          <button id="logoutBtn" class="auth-secondary-btn" data-i18n="logoutBtn">Выйти</button>
         </div>
 
-        <label class="block-label" for="searchInput" data-i18n="searchLabel">Поиск собеседника</label>
-        <div class="search-row">
-          <input id="searchInput" data-i18n-ph="phSearch" placeholder="Ищите по user id или имени" />
-          <button id="searchBtn" type="button" data-i18n="searchBtn">Найти</button>
+        <div class="search-section">
+          <label class="block-label" for="searchInput" data-i18n="searchLabel">Поиск собеседника</label>
+          <div class="search-row">
+            <div class="search-input-wrap">
+              <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input id="searchInput" data-i18n-ph="phSearch" placeholder="Ищите по user id или имени" autocomplete="off" />
+            </div>
+            <button id="searchBtn" type="button" class="primary-btn" data-i18n="searchBtn">Найти</button>
+          </div>
         </div>
+
         <div id="userList" class="user-list"></div>
       </section>
 
       <section class="chat-panel">
         <div class="chat-header">
-          <div>
-            <div class="caption" data-i18n="dialogCaption">Диалог</div>
-            <strong id="chatPartner" data-i18n="selectPartnerPlaceholder">Выберите собеседника</strong>
+          <div class="chat-header-info">
+            <button id="mobileBackBtn" class="mobile-back-btn" aria-label="Back">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <div id="partnerAvatar" class="partner-avatar hidden">?</div>
+            <div>
+              <div class="caption" data-i18n="dialogCaption">Диалог</div>
+              <strong id="chatPartner" data-i18n="selectPartnerPlaceholder">Выберите собеседника</strong>
+            </div>
           </div>
         </div>
 
         <div id="messages" class="messages"></div>
 
         <div class="composer">
-          <input id="messageInput" data-i18n-ph="phMessage" placeholder="Напишите сообщение..." />
-          <button id="sendBtn" data-i18n="sendBtn">Отправить</button>
+          <input id="messageInput" data-i18n-ph="phMessage" placeholder="Напишите сообщение..." autocomplete="off" />
+          <button id="sendBtn" class="send-btn">
+            <span data-i18n="sendBtn">Отправить</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
         </div>
       </section>
     </main>
