@@ -24,6 +24,7 @@ const deleteAllUsersBtn = document.getElementById('deleteAllUsersBtn');
 const logoutAdminBtn = document.getElementById('logoutAdminBtn');
 
 const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
 const userList = document.getElementById('userList');
 const messagesBox = document.getElementById('messages');
 const chatPartner = document.getElementById('chatPartner');
@@ -393,6 +394,7 @@ if (logoutBtn) {
 
 if (searchInput && userList && messagesBox) {
   searchInput.addEventListener('input', searchUsers);
+  searchBtn?.addEventListener('click', searchUsers);
   sendBtn.addEventListener('click', sendMessage);
   messageInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
