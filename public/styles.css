@@ -155,6 +155,73 @@ h1 {
   margin-bottom: 12px;
 }
 
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card-header h1 {
+  margin: 0;
+}
+
+.lang-switcher {
+  display: flex;
+  align-items: center;
+}
+
+.lang-select {
+  background: #374151;
+  color: #f9fafb;
+  border: 1px solid #4b5563;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 0;
+  outline: none;
+}
+
+.lang-select:hover,
+.lang-select:focus {
+  border-color: #60a5fa;
+}
+
+.current-user-badge {
+  margin-bottom: 14px;
+}
+
+.user-badge-box {
+  background: #111827;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.user-badge-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+}
+
+.user-badge-id {
+  font-size: 15px;
+  font-weight: 700;
+  color: #60a5fa;
+  word-break: break-all;
+}
+
+.user-badge-sub {
+  font-size: 13px;
+  color: #d1d5db;
+}
+
 .block-label {
   display: block;
   margin: 10px 0 6px;
