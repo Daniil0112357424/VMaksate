@@ -162,27 +162,32 @@ pruneDemoUsers().catch((error) => {
 
 app.get('/api/users', async (req, res) => {
   const me = String(req.query.me || '');
-  const search = String(req.query.search || '').toLowerCase();
+  const search = String(req.query.search || '').trim().toLowerCase();
   const store = await readStore();
 
-  let users = store.users.map((user) => sanitizeUser(user));
+  let users = store.users
+    .map((user) => sanitizeUser(user))
+    .filter((user) => user.id !== me);
 
-  if (me) {
-    const partnerIds = new Set();
-    store.messages.forEach((message) => {
-      if (message.fromId === me && message.toId !== me) {
-        partnerIds.add(String(message.toId));
-      }
-      if (message.toId === me && message.fromId !== me) {
-        partnerIds.add(String(message.fromId));
-      }
-    });
+  if (!search) {
+    if (me) {
+      const partnerIds = new Set();
+      store.messages.forEach((message) => {
+        if (message.fromId === me && message.toId !== me) {
+          partnerIds.add(String(message.toId));
+        }
+        if (message.toId === me && message.fromId !== me) {
+          partnerIds.add(String(message.fromId));
+        }
+      });
 
-    users = users.filter((user) => user.id !== me && partnerIds.has(user.id));
+      users = users.filter((user) => partnerIds.has(user.id));
+    }
+
+    return res.json(users);
   }
 
   users = users.filter((user) => {
-    if (!search) return true;
     return user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
   });
 

@@ -161,6 +161,22 @@ h1 {
   color: #d1d5db;
 }
 
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.search-row input {
+  flex: 1;
+}
+
+.search-row button {
+  width: 110px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
 input,
 button {
   width: 100%;
