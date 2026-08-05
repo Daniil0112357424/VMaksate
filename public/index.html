@@ -3,49 +3,58 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ВМаксате — Вход</title>
+    <title data-i18n="appTitle">ВМаксате — Вход</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main id="authPage" class="auth-shell">
       <section class="auth-card">
-        <h1>ВМаксате</h1>
-        <p class="auth-subtitle">Регистрация и вход в ваш аккаунт</p>
+        <div class="card-header">
+          <h1 data-i18n="appTitle">ВМаксате</h1>
+          <div class="lang-switcher">
+            <select class="langSelect lang-select" aria-label="Language selector">
+              <option value="ru">🇷🇺 RU</option>
+              <option value="en">🇬🇧 EN</option>
+              <option value="es">🇪🇸 ES</option>
+            </select>
+          </div>
+        </div>
+        <p class="auth-subtitle" data-i18n="authSubtitle">Регистрация и вход в ваш аккаунт</p>
 
         <div class="auth-toggle">
-          <button type="button" class="auth-toggle-btn active" data-mode="register">Регистрация</button>
-          <button type="button" class="auth-toggle-btn" data-mode="login">Войти</button>
+          <button type="button" class="auth-toggle-btn active" data-mode="register" data-i18n="tabRegister">Регистрация</button>
+          <button type="button" class="auth-toggle-btn" data-mode="login" data-i18n="tabLogin">Войти</button>
         </div>
 
         <section id="registerPanel" class="auth-panel active">
           <form id="registerForm" class="auth-form">
-            <label class="block-label" for="registerId">Ваш user id</label>
-            <input id="registerId" name="id" placeholder="Например: user-42" required />
+            <label class="block-label" for="registerId" data-i18n="labelYourUserId">Ваш user id</label>
+            <input id="registerId" name="id" data-i18n-ph="phRegisterId" placeholder="Например: user-42" required />
 
-            <label class="block-label" for="registerLabel">Ваше имя</label>
-            <input id="registerLabel" name="label" placeholder="Например: Иван" required />
+            <label class="block-label" for="registerLabel" data-i18n="labelYourName">Ваше имя</label>
+            <input id="registerLabel" name="label" data-i18n-ph="phRegisterLabel" placeholder="Например: Иван" required />
 
-            <label class="block-label" for="registerPassword">Пароль</label>
-            <input id="registerPassword" name="password" type="password" placeholder="Придумайте пароль" required />
+            <label class="block-label" for="registerPassword" data-i18n="labelPassword">Пароль</label>
+            <input id="registerPassword" name="password" type="password" data-i18n-ph="phRegisterPassword" placeholder="Придумайте пароль" required />
 
-            <button type="submit">Зарегистрироваться</button>
+            <button type="submit" data-i18n="btnRegister">Зарегистрироваться</button>
           </form>
 
-          <button type="button" id="goToLoginBtn" class="auth-secondary-btn">Войти</button>
+          <button type="button" id="goToLoginBtn" class="auth-secondary-btn" data-i18n="tabLogin">Войти</button>
         </section>
 
         <section id="loginPanel" class="auth-panel">
           <form id="loginForm" class="auth-form">
-            <label class="block-label" for="loginId">User id</label>
-            <input id="loginId" name="id" placeholder="Введите ваш id" required />
+            <label class="block-label" for="loginId" data-i18n="labelUserId">User id</label>
+            <input id="loginId" name="id" data-i18n-ph="phLoginId" placeholder="Введите ваш id" required />
 
-            <label class="block-label" for="loginPassword">Пароль</label>
-            <input id="loginPassword" name="password" type="password" placeholder="Введите пароль" required />
+            <label class="block-label" for="loginPassword" data-i18n="labelPassword">Пароль</label>
+            <input id="loginPassword" name="password" type="password" data-i18n-ph="phLoginPassword" placeholder="Введите пароль" required />
 
-            <button type="submit">Войти</button>
+            <button type="submit" data-i18n="btnLogin">Войти</button>
           </form>
 
-          <button type="button" id="goToRegisterBtn" class="auth-secondary-btn">Регистрация</button>
+          <button type="button" id="goToRegisterBtn" class="auth-secondary-btn" data-i18n="tabRegister">Регистрация</button>
         </section>
 
         <div id="authMessage" class="auth-message"></div>

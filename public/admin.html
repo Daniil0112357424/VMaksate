@@ -3,27 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ВМаксате — Admin</title>
+    <title data-i18n="adminTitle">ВМаксате — Admin</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main id="adminPage" class="admin-shell">
       <section class="admin-card">
-        <h1>Admin Panel</h1>
-        <p class="auth-subtitle">Доступ только по паролю</p>
+        <div class="card-header">
+          <h1 data-i18n="adminTitle">Admin Panel</h1>
+          <div class="lang-switcher">
+            <select class="langSelect lang-select" aria-label="Language selector">
+              <option value="ru">🇷🇺 RU</option>
+              <option value="en">🇬🇧 EN</option>
+              <option value="es">🇪🇸 ES</option>
+            </select>
+          </div>
+        </div>
+        <p class="auth-subtitle" data-i18n="adminSubtitle">Доступ только по паролю</p>
 
         <section id="adminLoginSection" class="admin-panel active">
           <form id="adminLoginForm" class="auth-form">
-            <label class="block-label" for="adminPassword">Пароль</label>
-            <input id="adminPassword" name="password" type="password" placeholder="Введите пароль" required />
-            <button type="submit">Войти в админку</button>
+            <label class="block-label" for="adminPassword" data-i18n="labelPassword">Пароль</label>
+            <input id="adminPassword" name="password" type="password" data-i18n-ph="phAdminPassword" placeholder="Введите пароль" required />
+            <button type="submit" data-i18n="btnAdminLogin">Войти в админку</button>
           </form>
         </section>
 
         <section id="adminDashboard" class="admin-panel">
           <div class="admin-actions">
-            <button type="button" id="deleteAllUsersBtn">Удалить всех</button>
-            <button type="button" id="logoutAdminBtn" class="auth-secondary-btn">Выйти</button>
+            <button type="button" id="deleteAllUsersBtn" data-i18n="btnDeleteAll">Удалить всех</button>
+            <button type="button" id="logoutAdminBtn" class="auth-secondary-btn" data-i18n="logoutBtn">Выйти</button>
           </div>
 
           <div id="adminMessage" class="auth-message"></div>

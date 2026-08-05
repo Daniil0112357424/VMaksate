@@ -3,22 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ВМаксате Messenger</title>
+    <title data-i18n="appTitle">ВМаксате Messenger</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <section class="sidebar">
         <div class="sidebar-top">
-          <h1>ВМаксате</h1>
+          <div class="card-header">
+            <h1 data-i18n="appTitle">ВМаксате</h1>
+            <div class="lang-switcher">
+              <select class="langSelect lang-select" aria-label="Language selector">
+                <option value="ru">🇷🇺 RU</option>
+                <option value="en">🇬🇧 EN</option>
+                <option value="es">🇪🇸 ES</option>
+              </select>
+            </div>
+          </div>
           <div id="currentUserBadge" class="current-user-badge"></div>
-          <button id="logoutBtn">Выйти</button>
+          <button id="logoutBtn" data-i18n="logoutBtn">Выйти</button>
         </div>
 
-        <label class="block-label" for="searchInput">Поиск собеседника</label>
+        <label class="block-label" for="searchInput" data-i18n="searchLabel">Поиск собеседника</label>
         <div class="search-row">
-          <input id="searchInput" placeholder="Ищите по user id или имени" />
-          <button id="searchBtn" type="button">Найти</button>
+          <input id="searchInput" data-i18n-ph="phSearch" placeholder="Ищите по user id или имени" />
+          <button id="searchBtn" type="button" data-i18n="searchBtn">Найти</button>
         </div>
         <div id="userList" class="user-list"></div>
       </section>
@@ -26,16 +35,16 @@
       <section class="chat-panel">
         <div class="chat-header">
           <div>
-            <div class="caption">Диалог</div>
-            <strong id="chatPartner">Выберите собеседника</strong>
+            <div class="caption" data-i18n="dialogCaption">Диалог</div>
+            <strong id="chatPartner" data-i18n="selectPartnerPlaceholder">Выберите собеседника</strong>
           </div>
         </div>
 
         <div id="messages" class="messages"></div>
 
         <div class="composer">
-          <input id="messageInput" placeholder="Напишите сообщение..." />
-          <button id="sendBtn">Отправить</button>
+          <input id="messageInput" data-i18n-ph="phMessage" placeholder="Напишите сообщение..." />
+          <button id="sendBtn" data-i18n="sendBtn">Отправить</button>
         </div>
       </section>
     </main>

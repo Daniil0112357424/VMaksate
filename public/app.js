@@ -1,3 +1,171 @@
+const translations = {
+  ru: {
+    appTitle: 'ВМаксате',
+    authSubtitle: 'Регистрация и вход в ваш аккаунт',
+    tabRegister: 'Регистрация',
+    tabLogin: 'Войти',
+    labelYourUserId: 'Ваш user id',
+    phRegisterId: 'Например: user-42',
+    labelYourName: 'Ваше имя',
+    phRegisterLabel: 'Например: Иван',
+    labelPassword: 'Пароль',
+    phRegisterPassword: 'Придумайте пароль',
+    btnRegister: 'Зарегистрироваться',
+    labelUserId: 'User id',
+    phLoginId: 'Введите ваш id',
+    phLoginPassword: 'Введите пароль',
+    btnLogin: 'Войти',
+    msgAccountCreated: 'Аккаунт создан. Сейчас вы войдёте в чат.',
+    msgWelcome: 'Добро пожаловать!',
+    errRegister: 'Не удалось зарегистрировать аккаунт.',
+    errLogin: 'Не удалось войти.',
+
+    // Chat page
+    yourIdLabel: 'Ваш ID:',
+    logoutBtn: 'Выйти',
+    searchLabel: 'Поиск собеседника',
+    phSearch: 'Ищите по user id или имени',
+    searchBtn: 'Найти',
+    dialogCaption: 'Диалог',
+    selectPartnerPlaceholder: 'Выберите собеседника',
+    phMessage: 'Напишите сообщение...',
+    sendBtn: 'Отправить',
+    alertSelectPartner: 'Сначала войдите в аккаунт и выберите собеседника.',
+
+    // Admin page
+    adminTitle: 'Admin Panel',
+    adminSubtitle: 'Доступ только по паролю',
+    phAdminPassword: 'Введите пароль',
+    btnAdminLogin: 'Войти в админку',
+    btnDeleteAll: 'Удалить всех',
+    btnDeleteUser: 'Удалить',
+    msgUserDeleted: 'Аккаунт {id} удалён.',
+    msgAllDeleted: 'Все пользователи удалены.',
+    errNoAdminAccess: 'Нет доступа к админке.',
+    errDeleteUser: 'Не удалось удалить пользователя.',
+    errDeleteAll: 'Не удалось удалить всех пользователей.',
+    errInvalidPassword: 'Неверный пароль.'
+  },
+  en: {
+    appTitle: 'VMaksate',
+    authSubtitle: 'Registration and sign in to your account',
+    tabRegister: 'Register',
+    tabLogin: 'Sign In',
+    labelYourUserId: 'Your User ID',
+    phRegisterId: 'Example: user-42',
+    labelYourName: 'Your Name',
+    phRegisterLabel: 'Example: John',
+    labelPassword: 'Password',
+    phRegisterPassword: 'Create a password',
+    btnRegister: 'Sign Up',
+    labelUserId: 'User ID',
+    phLoginId: 'Enter your ID',
+    phLoginPassword: 'Enter password',
+    btnLogin: 'Sign In',
+    msgAccountCreated: 'Account created. Entering chat...',
+    msgWelcome: 'Welcome!',
+    errRegister: 'Failed to register account.',
+    errLogin: 'Failed to sign in.',
+
+    // Chat page
+    yourIdLabel: 'Your ID:',
+    logoutBtn: 'Log Out',
+    searchLabel: 'Search contacts',
+    phSearch: 'Search by User ID or name',
+    searchBtn: 'Search',
+    dialogCaption: 'Conversation',
+    selectPartnerPlaceholder: 'Select a conversation',
+    phMessage: 'Type a message...',
+    sendBtn: 'Send',
+    alertSelectPartner: 'Please sign in and select a user first.',
+
+    // Admin page
+    adminTitle: 'Admin Panel',
+    adminSubtitle: 'Password restricted access',
+    phAdminPassword: 'Enter password',
+    btnAdminLogin: 'Log in as Admin',
+    btnDeleteAll: 'Delete All Users',
+    btnDeleteUser: 'Delete',
+    msgUserDeleted: 'Account {id} deleted.',
+    msgAllDeleted: 'All users have been deleted.',
+    errNoAdminAccess: 'No admin access.',
+    errDeleteUser: 'Failed to delete user.',
+    errDeleteAll: 'Failed to delete all users.',
+    errInvalidPassword: 'Invalid password.'
+  },
+  es: {
+    appTitle: 'VMaksate',
+    authSubtitle: 'Registro e inicio de sesión en su cuenta',
+    tabRegister: 'Registro',
+    tabLogin: 'Iniciar sesión',
+    labelYourUserId: 'Su ID de usuario',
+    phRegisterId: 'Ejemplo: user-42',
+    labelYourName: 'Su nombre',
+    phRegisterLabel: 'Ejemplo: Juan',
+    labelPassword: 'Contraseña',
+    phRegisterPassword: 'Cree una contraseña',
+    btnRegister: 'Registrarse',
+    labelUserId: 'ID de usuario',
+    phLoginId: 'Ingrese su ID',
+    phLoginPassword: 'Ingrese contraseña',
+    btnLogin: 'Iniciar sesión',
+    msgAccountCreated: 'Cuenta creada. Entrando al chat...',
+    msgWelcome: '¡Bienvenido!',
+    errRegister: 'No se pudo registrar la cuenta.',
+    errLogin: 'No se pudo iniciar sesión.',
+
+    // Chat page
+    yourIdLabel: 'Su ID:',
+    logoutBtn: 'Cerrar sesión',
+    searchLabel: 'Buscar interlocutor',
+    phSearch: 'Buscar por ID de usuario o nombre',
+    searchBtn: 'Buscar',
+    dialogCaption: 'Diálogo',
+    selectPartnerPlaceholder: 'Seleccione un interlocutor',
+    phMessage: 'Escriba un mensaje...',
+    sendBtn: 'Enviar',
+    alertSelectPartner: 'Primero inicie sesión y seleccione un interlocutor.',
+
+    // Admin page
+    adminTitle: 'Panel de Admin',
+    adminSubtitle: 'Acceso restringido por contraseña',
+    phAdminPassword: 'Ingrese contraseña',
+    btnAdminLogin: 'Entrar como Admin',
+    btnDeleteAll: 'Eliminar a todos',
+    btnDeleteUser: 'Eliminar',
+    msgUserDeleted: 'Cuenta {id} eliminada.',
+    msgAllDeleted: 'Todos los usuarios han sido eliminados.',
+    errNoAdminAccess: 'Sin acceso de administrador.',
+    errDeleteUser: 'No se pudo eliminar el usuario.',
+    errDeleteAll: 'No se pudo eliminar a todos los usuarios.',
+    errInvalidPassword: 'Contraseña incorrecta.'
+  }
+};
+
+let currentLang = localStorage.getItem('app_lang') || 'ru';
+if (!['ru', 'en', 'es'].includes(currentLang)) {
+  currentLang = 'ru';
+}
+
+function t(key, params = {}) {
+  const dict = translations[currentLang] || translations.ru;
+  let str = dict[key] || translations.ru[key] || key;
+  for (const [k, v] of Object.entries(params)) {
+    str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), v);
+  }
+  return str;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 let currentUser = null;
 let selectedPartner = null;
 let currentUserList = [];
@@ -31,6 +199,60 @@ const chatPartner = document.getElementById('chatPartner');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const logoutBtn = document.getElementById('logoutBtn');
+const currentUserBadge = document.getElementById('currentUserBadge');
+
+function renderCurrentUserBadge() {
+  if (!currentUserBadge) return;
+  if (!currentUser) {
+    currentUserBadge.innerHTML = '';
+    return;
+  }
+  const labelText = t('yourIdLabel');
+  currentUserBadge.innerHTML = `
+    <div class="user-badge-box">
+      <div class="user-badge-label">${escapeHtml(labelText)}</div>
+      <div class="user-badge-id">${escapeHtml(currentUser.id)}</div>
+      <div class="user-badge-sub">${escapeHtml(currentUser.label)}</div>
+    </div>
+  `;
+}
+
+function applyLanguage(lang) {
+  if (!['ru', 'en', 'es'].includes(lang)) lang = 'ru';
+  currentLang = lang;
+  localStorage.setItem('app_lang', lang);
+  document.documentElement.lang = lang;
+
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const key = el.getAttribute('data-i18n');
+    if (key) {
+      el.textContent = t(key);
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-ph]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-ph');
+    if (key) {
+      el.placeholder = t(key);
+    }
+  });
+
+  document.querySelectorAll('.langSelect').forEach((select) => {
+    select.value = lang;
+  });
+
+  if (currentUser) {
+    renderCurrentUserBadge();
+  }
+
+  if (chatPartner && !selectedPartner) {
+    chatPartner.textContent = t('selectPartnerPlaceholder');
+  }
+
+  if (adminUserList && adminPage && adminDashboard?.classList.contains('active')) {
+    loadAdminUsers();
+  }
+}
 
 async function showAuthMessage(text, isError = false) {
   if (!authMessage) return;
@@ -47,7 +269,7 @@ async function createUserFromAuth(id, label, password) {
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || 'Не удалось зарегистрировать аккаунт.');
+    throw new Error(data.error || t('errRegister'));
   }
 
   return data.user;
@@ -62,7 +284,7 @@ async function loginUser(id, password) {
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(data.error || 'Не удалось войти.');
+    throw new Error(data.error || t('errLogin'));
   }
 
   return data.user;
@@ -90,12 +312,12 @@ async function handleAuthSubmit(event, mode) {
   try {
     if (mode === 'register') {
       await createUserFromAuth(id, label, password);
-      showAuthMessage('Аккаунт создан. Сейчас вы войдёте в чат.');
+      showAuthMessage(t('msgAccountCreated'));
       currentUser = { id, label };
       window.location.href = '/chat.html';
     } else {
       currentUser = await loginUser(id, password);
-      showAuthMessage('Добро пожаловать!');
+      showAuthMessage(t('msgWelcome'));
       window.location.href = '/chat.html';
     }
   } catch (error) {
@@ -240,7 +462,7 @@ function startChatRefresh() {
 
 async function sendMessage() {
   if (!currentUser || !selectedPartner) {
-    alert('Сначала войдите в аккаунт и выберите собеседника.');
+    alert(t('alertSelectPartner'));
     return;
   }
 
@@ -280,7 +502,7 @@ async function loadAdminUsers() {
   const data = await response.json();
 
   if (!response.ok) {
-    showAdminMessage(data.error || 'Нет доступа к админке.', true);
+    showAdminMessage(data.error || t('errNoAdminAccess'), true);
     return;
   }
 
@@ -288,16 +510,17 @@ async function loadAdminUsers() {
   data.users.forEach((user) => {
     const card = document.createElement('div');
     card.className = 'admin-user-card';
-    card.innerHTML = `<div><strong>${user.label}</strong><br /><span>${user.id}</span></div><button type="button" class="admin-delete-btn">Удалить</button>`;
+    const deleteBtnText = t('btnDeleteUser');
+    card.innerHTML = `<div><strong>${escapeHtml(user.label)}</strong><br /><span>${escapeHtml(user.id)}</span></div><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button>`;
 
     card.querySelector('.admin-delete-btn').addEventListener('click', async () => {
       const deleteResponse = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
       const result = await deleteResponse.json();
       if (!deleteResponse.ok) {
-        showAdminMessage(result.error || 'Не удалось удалить пользователя.', true);
+        showAdminMessage(result.error || t('errDeleteUser'), true);
         return;
       }
-      showAdminMessage(`Аккаунт ${user.id} удалён.`);
+      showAdminMessage(t('msgUserDeleted', { id: user.id }));
       await loadAdminUsers();
     });
 
@@ -330,10 +553,19 @@ async function bootChatPage() {
     return;
   }
 
-  chatPartner.textContent = 'Выберите собеседника';
+  renderCurrentUserBadge();
+  chatPartner.textContent = t('selectPartnerPlaceholder');
   searchUsers();
   startChatRefresh();
 }
+
+document.querySelectorAll('.langSelect').forEach((select) => {
+  select.value = currentLang;
+  select.addEventListener('change', (e) => {
+    applyLanguage(e.target.value);
+  });
+});
+applyLanguage(currentLang);
 
 if (authPage) {
   setAuthMode('register');
@@ -359,7 +591,7 @@ if (adminPage) {
     const data = await response.json();
 
     if (!response.ok) {
-      showAdminMessage(data.error || 'Неверный пароль.', true);
+      showAdminMessage(data.error || t('errInvalidPassword'), true);
       return;
     }
 
@@ -370,10 +602,10 @@ if (adminPage) {
     const response = await fetch('/api/admin/users', { method: 'DELETE' });
     const data = await response.json();
     if (!response.ok) {
-      showAdminMessage(data.error || 'Не удалось удалить всех пользователей.', true);
+      showAdminMessage(data.error || t('errDeleteAll'), true);
       return;
     }
-    showAdminMessage('Все пользователи удалены.');
+    showAdminMessage(t('msgAllDeleted'));
     await loadAdminUsers();
   });
 
