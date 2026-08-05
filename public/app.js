@@ -496,6 +496,8 @@ setInterval(() => {
   }
 }, 2000);
 
+let latestMessagesRequest = 0;
+
 async function loadMessages() {
   if (!currentUser || !messagesBox) return;
 
@@ -513,8 +515,15 @@ async function loadMessages() {
     return;
   }
 
-  const response = await fetch(`/api/chat?me=${encodeURIComponent(currentUser.id)}&other=${encodeURIComponent(selectedPartner.id)}`);
+  const partnerId = selectedPartner.id;
+  const requestNumber = ++latestMessagesRequest;
+  const response = await fetch(`/api/chat?me=${encodeURIComponent(currentUser.id)}&other=${encodeURIComponent(partnerId)}`);
   const data = await response.json();
+
+  // Requests from the interval may finish out of order. Do not let an old
+  // response replace a newer chat or the newly selected conversation.
+  if (requestNumber !== latestMessagesRequest || !selectedPartner || selectedPartner.id !== partnerId) return;
+
   messagesBox.innerHTML = '';
 
   const messages = data.messages || [];
@@ -582,6 +591,8 @@ function startChatRefresh() {
   }, 2000);
 }
 
+let isSendingMessage = false;
+
 async function sendMessage() {
   if (!currentUser || !selectedPartner) {
     alert(t('alertSelectPartner'));
@@ -589,20 +600,33 @@ async function sendMessage() {
   }
 
   const text = messageInput.value.trim();
-  if (!text) return;
+  if (!text || isSendingMessage) return;
 
-  await fetch('/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      fromId: currentUser.id,
-      toId: selectedPartner.id,
-      text,
-    }),
-  });
+  isSendingMessage = true;
+  sendBtn.disabled = true;
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fromId: currentUser.id,
+        toId: selectedPartner.id,
+        text,
+      }),
+    });
 
-  messageInput.value = '';
-  loadMessages();
+    if (!response.ok) {
+      throw new Error('Unable to send message.');
+    }
+
+    messageInput.value = '';
+    await loadMessages();
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    isSendingMessage = false;
+    sendBtn.disabled = false;
+  }
 }
 
 async function loadCurrentUser() {
