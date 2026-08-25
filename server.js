@@ -247,6 +247,9 @@ function toAppMessage(message) {
     callId: message.call_id || null,
     callMode: message.call_mode || null,
     callStatus: message.call_status || null,
+    stickerId: message.sticker_id || null,
+    reactions: message.reactions || {},
+    readAt: message.read_at || null,
     createdAt: String(message.created_at),
   };
 }
@@ -262,6 +265,9 @@ function toDatabaseMessage(message) {
     call_id: message.callId || null,
     call_mode: message.callMode || null,
     call_status: message.callStatus || null,
+    sticker_id: message.stickerId || null,
+    reactions: message.reactions || {},
+    read_at: message.readAt || null,
     created_at: message.createdAt,
   };
 }
@@ -612,8 +618,8 @@ app.get('/api/chat', async (req, res) => {
 
   if (supabaseEnabled) {
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, created_at').eq('from_id', me).eq('to_id', other),
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, created_at').eq('from_id', other).eq('to_id', me),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, read_at, created_at').eq('from_id', me).eq('to_id', other),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, read_at, created_at').eq('from_id', other).eq('to_id', me),
     ]);
     if (sentError || receivedError) throw sentError || receivedError;
     const messages = [...(sent || []), ...(received || [])]
@@ -637,9 +643,9 @@ app.get('/api/chat', async (req, res) => {
 });
 
 app.post('/api/chat', async (req, res) => {
-  const { fromId, toId, text = '', imageData = null } = req.body || {};
+  const { fromId, toId, text = '', imageData = null, stickerId = null } = req.body || {};
 
-  if (!fromId || !toId || (!String(text).trim() && !imageData) || String(text).length > 4000 || (imageData && !validImageData(imageData))) {
+  if (!fromId || !toId || (!String(text).trim() && !imageData && !stickerId) || String(text).length > 4000 || (imageData && !validImageData(imageData)) || (stickerId && stickerId !== 'eto-realno')) {
     return res.status(400).json({ error: 'Invalid message.' });
   }
 
@@ -651,7 +657,10 @@ app.post('/api/chat', async (req, res) => {
     toId: String(toId),
     text: String(text),
     imageData,
-    type: imageData ? 'image' : 'text',
+    type: stickerId ? 'sticker' : imageData ? 'image' : 'text',
+    stickerId,
+    reactions: {},
+    readAt: null,
     createdAt: new Date().toISOString(),
   };
 
@@ -697,6 +706,60 @@ app.post('/api/calls/log', async (req, res) => {
     persistStore();
   }
   res.json({ ok: true });
+});
+
+app.post('/api/chat/read', async (req, res) => {
+  const { me, other } = req.body || {};
+  if (!me || !other) return res.status(400).json({ error: 'Need both ids.' });
+  const readAt = new Date().toISOString();
+  if (supabaseEnabled) {
+    const { error } = await supabase.from('messages').update({ read_at: readAt })
+      .eq('from_id', String(other)).eq('to_id', String(me)).is('read_at', null);
+    if (error) throw error;
+  } else if (firebaseEnabled && firebaseDb) {
+    const snapshot = await firebaseDb.collection('messages').where('fromId', '==', String(other)).where('toId', '==', String(me)).get();
+    const batch = firebaseDb.batch();
+    snapshot.docs.filter((doc) => !doc.data().readAt).forEach((doc) => batch.update(doc.ref, { readAt }));
+    if (!snapshot.empty) await batch.commit();
+    invalidateFirestoreCache();
+  } else {
+    memoryStore.messages.forEach((message) => {
+      if (message.fromId === String(other) && message.toId === String(me) && !message.readAt) message.readAt = readAt;
+    });
+    persistStore();
+  }
+  res.json({ ok: true });
+});
+
+app.post('/api/chat/reactions', async (req, res) => {
+  const { messageId, userId, reaction } = req.body || {};
+  if (!messageId || !userId || !['heart', 'like', 'poop'].includes(reaction)) return res.status(400).json({ error: 'Invalid reaction.' });
+  let message = null;
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages').select('id, reactions').eq('id', String(messageId)).maybeSingle();
+    if (error) throw error;
+    message = data;
+  } else if (firebaseEnabled && firebaseDb) {
+    const doc = await firebaseDb.collection('messages').doc(String(messageId)).get();
+    message = doc.exists ? { id: doc.id, ...doc.data() } : null;
+  } else message = memoryStore.messages.find((item) => item.id === String(messageId));
+  if (!message) return res.status(404).json({ error: 'Message not found.' });
+
+  const reactions = { ...(message.reactions || {}) };
+  const users = new Set(reactions[reaction] || []);
+  if (users.has(String(userId))) users.delete(String(userId)); else users.add(String(userId));
+  reactions[reaction] = [...users];
+  if (supabaseEnabled) {
+    const { error } = await supabase.from('messages').update({ reactions }).eq('id', String(messageId));
+    if (error) throw error;
+  } else if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('messages').doc(String(messageId)).update({ reactions });
+    invalidateFirestoreCache();
+  } else {
+    message.reactions = reactions;
+    persistStore();
+  }
+  res.json({ ok: true, reactions });
 });
 
 const CALL_SIGNAL_TYPES = new Set(['offer', 'answer', 'candidate', 'hangup', 'decline', 'busy']);

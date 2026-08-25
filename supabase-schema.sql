@@ -20,6 +20,9 @@ alter table public.messages add column if not exists type text not null default 
 alter table public.messages add column if not exists call_id uuid;
 alter table public.messages add column if not exists call_mode text;
 alter table public.messages add column if not exists call_status text;
+alter table public.messages add column if not exists sticker_id text;
+alter table public.messages add column if not exists reactions jsonb not null default '{}'::jsonb;
+alter table public.messages add column if not exists read_at timestamptz;
 
 alter table public.messages drop constraint if exists messages_text_check;
 alter table public.messages add constraint messages_text_check
