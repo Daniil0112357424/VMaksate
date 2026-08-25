@@ -242,6 +242,11 @@ function toAppMessage(message) {
     fromId: String(message.from_id),
     toId: String(message.to_id),
     text: String(message.text),
+    imageData: message.image_data || null,
+    type: message.type || 'text',
+    callId: message.call_id || null,
+    callMode: message.call_mode || null,
+    callStatus: message.call_status || null,
     createdAt: String(message.created_at),
   };
 }
@@ -252,6 +257,11 @@ function toDatabaseMessage(message) {
     from_id: message.fromId,
     to_id: message.toId,
     text: message.text,
+    image_data: message.imageData || null,
+    type: message.type || 'text',
+    call_id: message.callId || null,
+    call_mode: message.callMode || null,
+    call_status: message.callStatus || null,
     created_at: message.createdAt,
   };
 }
@@ -260,7 +270,16 @@ function sanitizeUser(user) {
   return {
     id: user.id,
     label: user.label,
+    avatarData: user.avatar_data || user.avatarData || null,
   };
+}
+
+const MAX_IMAGE_DATA_LENGTH = 1_500_000;
+
+function validImageData(value) {
+  return typeof value === 'string'
+    && value.length <= MAX_IMAGE_DATA_LENGTH
+    && /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value);
 }
 
 function pruneDemoUsers() {
@@ -306,7 +325,7 @@ app.get('/api/users', async (req, res) => {
 
   if (supabaseEnabled) {
     const [{ data: users, error: usersError }, { data: messages, error: messagesError }] = await Promise.all([
-      supabase.from('users').select('id, label'),
+      supabase.from('users').select('id, label, avatar_data'),
       supabase.from('messages').select('from_id, to_id'),
     ]);
     if (usersError || messagesError) throw usersError || messagesError;
@@ -323,7 +342,7 @@ app.get('/api/users', async (req, res) => {
     if (search) {
       result = result.filter((user) => user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search));
     }
-    return res.json(result);
+    return res.json(result.map(sanitizeUser));
   }
 
   const storeUsers = firebaseEnabled && firebaseDb
@@ -382,7 +401,7 @@ app.post('/api/auth/register', async (req, res) => {
   } else if (firebaseEnabled && firebaseDb) {
     try {
       await firebaseDb.collection('users').doc(String(id)).create({
-        id: String(id), label: String(label), password: String(password),
+        id: String(id), label: String(label), password: String(password), avatarData: null,
       });
       invalidateFirestoreCache();
     } catch (error) {
@@ -415,7 +434,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   await storeReady;
   const user = supabaseEnabled
-    ? (await supabase.from('users').select('id, label, password').eq('id', String(id)).maybeSingle()).data
+    ? (await supabase.from('users').select('id, label, password, avatar_data').eq('id', String(id)).maybeSingle()).data
     : firebaseEnabled && firebaseDb
     ? (await firebaseDb.collection('users').doc(String(id)).get()).data()
     : memoryStore.users.find((entry) => entry.id === String(id));
@@ -440,7 +459,7 @@ app.get('/api/auth/me', async (req, res) => {
 
   await storeReady;
   const user = supabaseEnabled
-    ? (await supabase.from('users').select('id, label').eq('id', String(sessionUserId)).maybeSingle()).data
+    ? (await supabase.from('users').select('id, label, avatar_data').eq('id', String(sessionUserId)).maybeSingle()).data
     : firebaseEnabled && firebaseDb
     ? (await firebaseDb.collection('users').doc(String(sessionUserId)).get()).data()
     : memoryStore.users.find((entry) => entry.id === String(sessionUserId));
@@ -449,6 +468,32 @@ app.get('/api/auth/me', async (req, res) => {
   }
 
   res.json({ user: sanitizeUser(user) });
+});
+
+app.patch('/api/auth/profile', async (req, res) => {
+  const sessionUserId = req.cookies?.sessionUserId;
+  const { label, avatarData } = req.body || {};
+  const cleanLabel = String(label || '').trim();
+  if (!sessionUserId || !cleanLabel || cleanLabel.length > 80) return res.status(400).json({ error: 'Invalid profile.' });
+  if (avatarData !== null && avatarData !== undefined && !validImageData(avatarData)) return res.status(400).json({ error: 'Invalid image.' });
+
+  const update = { label: cleanLabel, avatarData: avatarData ?? null };
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('users').update({ label: cleanLabel, avatar_data: update.avatarData })
+      .eq('id', String(sessionUserId)).select('id, label, avatar_data').single();
+    if (error) throw error;
+    return res.json({ ok: true, user: sanitizeUser(data) });
+  }
+  if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('users').doc(String(sessionUserId)).set(update, { merge: true });
+    invalidateFirestoreCache();
+    return res.json({ ok: true, user: sanitizeUser({ id: sessionUserId, ...update }) });
+  }
+  const user = memoryStore.users.find((entry) => entry.id === String(sessionUserId));
+  if (!user) return res.status(404).json({ error: 'User not found.' });
+  Object.assign(user, update);
+  persistStore();
+  res.json({ ok: true, user: sanitizeUser(user) });
 });
 
 app.post('/api/auth/logout', (req, res) => {
@@ -567,8 +612,8 @@ app.get('/api/chat', async (req, res) => {
 
   if (supabaseEnabled) {
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
-      supabase.from('messages').select('id, from_id, to_id, text, created_at').eq('from_id', me).eq('to_id', other),
-      supabase.from('messages').select('id, from_id, to_id, text, created_at').eq('from_id', other).eq('to_id', me),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, created_at').eq('from_id', me).eq('to_id', other),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, created_at').eq('from_id', other).eq('to_id', me),
     ]);
     if (sentError || receivedError) throw sentError || receivedError;
     const messages = [...(sent || []), ...(received || [])]
@@ -592,10 +637,10 @@ app.get('/api/chat', async (req, res) => {
 });
 
 app.post('/api/chat', async (req, res) => {
-  const { fromId, toId, text } = req.body || {};
+  const { fromId, toId, text = '', imageData = null } = req.body || {};
 
-  if (!fromId || !toId || !text) {
-    return res.status(400).json({ error: 'Need fromId, toId and text.' });
+  if (!fromId || !toId || (!String(text).trim() && !imageData) || String(text).length > 4000 || (imageData && !validImageData(imageData))) {
+    return res.status(400).json({ error: 'Invalid message.' });
   }
 
   await storeReady;
@@ -605,6 +650,8 @@ app.post('/api/chat', async (req, res) => {
     fromId: String(fromId),
     toId: String(toId),
     text: String(text),
+    imageData,
+    type: imageData ? 'image' : 'text',
     createdAt: new Date().toISOString(),
   };
 
@@ -628,6 +675,28 @@ app.post('/api/chat', async (req, res) => {
   }
 
   res.json({ ok: true, message });
+});
+
+app.post('/api/calls/log', async (req, res) => {
+  const { callId, fromId, toId, mode, status = 'missed' } = req.body || {};
+  if (!callId || !fromId || !toId || !['audio', 'video'].includes(mode)) return res.status(400).json({ error: 'Invalid call log.' });
+  const message = {
+    id: String(callId), fromId: String(fromId), toId: String(toId), text: '', type: 'call',
+    callId: String(callId), callMode: mode, callStatus: status, createdAt: new Date().toISOString(),
+  };
+  if (supabaseEnabled) {
+    const { error } = await supabase.from('messages').upsert(toDatabaseMessage(message), { onConflict: 'id' });
+    if (error) throw error;
+  } else if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('messages').doc(message.id).set(message, { merge: true });
+    invalidateFirestoreCache();
+  } else {
+    const index = memoryStore.messages.findIndex((item) => item.id === message.id);
+    if (index >= 0) memoryStore.messages[index] = { ...memoryStore.messages[index], ...message };
+    else memoryStore.messages.push(message);
+    persistStore();
+  }
+  res.json({ ok: true });
 });
 
 const CALL_SIGNAL_TYPES = new Set(['offer', 'answer', 'candidate', 'hangup', 'decline', 'busy']);

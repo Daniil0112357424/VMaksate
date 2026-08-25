@@ -34,6 +34,8 @@ const translations = {
     audioCallTitle: 'Аудиозвонок', videoCallTitle: 'Видеозвонок', acceptCallTitle: 'Ответить', declineCallTitle: 'Отклонить', endCallTitle: 'Завершить звонок',
     callIncoming: 'Входящий звонок...', callCalling: 'Звоним...', callConnecting: 'Подключение...', callInProgress: 'В звонке', callDeclined: 'Звонок отклонён', callBusy: 'Пользователь уже разговаривает',
     callMediaError: 'Не удалось получить доступ к микрофону или камере.', callUnsupported: 'Звонки не поддерживаются этим браузером.',
+    profileBtn: 'Профиль', profileTitle: 'Профиль', profileNameLabel: 'Имя', profileUserIdLabel: 'User ID', saveProfileBtn: 'Сохранить', attachPhotoTitle: 'Прикрепить фото',
+    callAudio: 'Аудиозвонок', callVideo: 'Видеозвонок', callMissed: 'Пропущенный {mode}', callCompleted: '{mode}', callDeclinedLog: 'Отклонённый {mode}',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -84,6 +86,8 @@ const translations = {
     audioCallTitle: 'Audio call', videoCallTitle: 'Video call', acceptCallTitle: 'Answer', declineCallTitle: 'Decline', endCallTitle: 'End call',
     callIncoming: 'Incoming call...', callCalling: 'Calling...', callConnecting: 'Connecting...', callInProgress: 'In call', callDeclined: 'Call declined', callBusy: 'User is already in a call',
     callMediaError: 'Unable to access the microphone or camera.', callUnsupported: 'Calls are not supported by this browser.',
+    profileBtn: 'Profile', profileTitle: 'Profile', profileNameLabel: 'Name', profileUserIdLabel: 'User ID', saveProfileBtn: 'Save', attachPhotoTitle: 'Attach photo',
+    callAudio: 'Audio call', callVideo: 'Video call', callMissed: 'Missed {mode}', callCompleted: '{mode}', callDeclinedLog: 'Declined {mode}',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -134,6 +138,8 @@ const translations = {
     audioCallTitle: 'Llamada de audio', videoCallTitle: 'Videollamada', acceptCallTitle: 'Responder', declineCallTitle: 'Rechazar', endCallTitle: 'Finalizar llamada',
     callIncoming: 'Llamada entrante...', callCalling: 'Llamando...', callConnecting: 'Conectando...', callInProgress: 'En llamada', callDeclined: 'Llamada rechazada', callBusy: 'El usuario ya está en una llamada',
     callMediaError: 'No se pudo acceder al micrófono o la cámara.', callUnsupported: 'Este navegador no admite llamadas.',
+    profileBtn: 'Perfil', profileTitle: 'Perfil', profileNameLabel: 'Nombre', profileUserIdLabel: 'ID de usuario', saveProfileBtn: 'Guardar', attachPhotoTitle: 'Adjuntar foto',
+    callAudio: 'Llamada de audio', callVideo: 'Videollamada', callMissed: 'Llamada perdida: {mode}', callCompleted: '{mode}', callDeclinedLog: '{mode} rechazada',
 
     // Admin page
     adminTitle: 'Panel de Admin',
@@ -249,6 +255,17 @@ const callStatus = document.getElementById('callStatus');
 const acceptCallBtn = document.getElementById('acceptCallBtn');
 const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
+const imageInput = document.getElementById('imageInput');
+const profileBtn = document.getElementById('profileBtn');
+const profileModal = document.getElementById('profileModal');
+const profileForm = document.getElementById('profileForm');
+const profileNameInput = document.getElementById('profileNameInput');
+const profileUserId = document.getElementById('profileUserId');
+const profileImageInput = document.getElementById('profileImageInput');
+const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+const closeProfileBtn = document.getElementById('closeProfileBtn');
+let pendingMessageImage = null;
+let pendingAvatarImage = null;
 
 function renderCurrentUserBadge() {
   if (!currentUserBadge) return;
@@ -275,10 +292,11 @@ function updateChatHeader(user) {
     if (videoCallBtn) videoCallBtn.disabled = true;
     return;
   }
-  chatPartner.textContent = `${user.label} (${user.id})`;
+  chatPartner.textContent = user.label;
   if (partnerAvatar) {
     partnerAvatar.classList.remove('hidden');
-    partnerAvatar.style.background = getAvatarBg(user.label || user.id);
+    partnerAvatar.style.background = user.avatarData ? `url("${user.avatarData}") center / cover` : getAvatarBg(user.label || user.id);
+    partnerAvatar.classList.toggle('avatar-photo', Boolean(user.avatarData));
     partnerAvatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
   }
   const callsUnavailable = !window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia;
@@ -429,7 +447,8 @@ function renderUsers(users) {
 
     const avatar = document.createElement('div');
     avatar.className = 'user-avatar-circle';
-    avatar.style.background = getAvatarBg(user.label || user.id);
+    avatar.style.background = user.avatarData ? `url("${user.avatarData}") center / cover` : getAvatarBg(user.label || user.id);
+    avatar.classList.toggle('avatar-photo', Boolean(user.avatarData));
     avatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
 
     const info = document.createElement('div');
@@ -439,12 +458,7 @@ function renderUsers(users) {
     name.className = 'user-item-name';
     name.textContent = user.label;
 
-    const idTag = document.createElement('div');
-    idTag.className = 'user-item-id';
-    idTag.textContent = user.id;
-
     info.appendChild(name);
-    info.appendChild(idTag);
 
     const meta = document.createElement('div');
     meta.className = 'user-item-meta';
@@ -579,7 +593,17 @@ async function loadMessages() {
   messages.forEach((item) => {
     const isMe = item.fromId === currentUser.id;
     const div = document.createElement('div');
-    div.className = `message ${isMe ? 'me' : 'other'}`;
+    div.className = `message ${item.type === 'call' ? 'call-message' : isMe ? 'me' : 'other'}`;
+
+    if (item.type === 'call') {
+      const mode = item.callMode === 'video' ? t('callVideo') : t('callAudio');
+      const callText = item.callStatus === 'completed' ? t('callCompleted', { mode })
+        : item.callStatus === 'declined' ? t('callDeclinedLog', { mode })
+        : t('callMissed', { mode });
+      div.textContent = callText;
+      messagesBox.appendChild(div);
+      return;
+    }
 
     if (!isMe) {
       const sender = document.createElement('div');
@@ -588,10 +612,20 @@ async function loadMessages() {
       div.appendChild(sender);
     }
 
-    const text = document.createElement('div');
-    text.className = 'message-text';
-    text.textContent = item.text;
-    div.appendChild(text);
+    if (item.text) {
+      const text = document.createElement('div');
+      text.className = 'message-text';
+      text.textContent = item.text;
+      div.appendChild(text);
+    }
+
+    if (item.imageData) {
+      const image = document.createElement('img');
+      image.className = 'message-image';
+      image.src = item.imageData;
+      image.alt = '';
+      div.appendChild(image);
+    }
 
     if (item.createdAt) {
       const time = document.createElement('div');
@@ -633,7 +667,7 @@ async function sendMessage() {
   }
 
   const text = messageInput.value.trim();
-  if (!text || isSendingMessage) return;
+  if ((!text && !pendingMessageImage) || isSendingMessage) return;
 
   isSendingMessage = true;
   sendBtn.disabled = true;
@@ -645,6 +679,7 @@ async function sendMessage() {
         fromId: currentUser.id,
         toId: selectedPartner.id,
         text,
+        imageData: pendingMessageImage,
       }),
     });
 
@@ -653,6 +688,8 @@ async function sendMessage() {
     }
 
     messageInput.value = '';
+    pendingMessageImage = null;
+    if (imageInput) imageInput.value = '';
     await loadMessages();
   } catch (error) {
     alert(error.message);
@@ -662,6 +699,44 @@ async function sendMessage() {
   }
 }
 
+function readImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || file.size > 1_100_000) return reject(new Error('Фото должно быть меньше 1 МБ.'));
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Не удалось прочитать фото.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function openProfile() {
+  if (!currentUser || !profileModal) return;
+  pendingAvatarImage = currentUser.avatarData || null;
+  profileNameInput.value = currentUser.label;
+  profileUserId.textContent = currentUser.id;
+  profileAvatarPreview.textContent = currentUser.label.charAt(0).toUpperCase();
+  profileAvatarPreview.parentElement.style.backgroundImage = pendingAvatarImage ? `url("${pendingAvatarImage}")` : '';
+  profileAvatarPreview.style.color = pendingAvatarImage ? 'transparent' : '';
+  profileModal.classList.remove('hidden');
+}
+
+function closeProfile() { profileModal?.classList.add('hidden'); }
+
+async function saveProfile(event) {
+  event.preventDefault();
+  const response = await fetch('/api/auth/profile', {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ label: profileNameInput.value.trim(), avatarData: pendingAvatarImage }),
+  });
+  const data = await response.json();
+  if (!response.ok) return alert(data.error || 'Не удалось сохранить профиль.');
+  currentUser = data.user;
+  renderCurrentUserBadge();
+  if (selectedPartner?.id === currentUser.id) updateChatHeader(currentUser);
+  closeProfile();
+  searchUsers();
+}
+
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 let callState = null;
 let incomingCall = null;
@@ -669,6 +744,15 @@ let callSignalCursor = new Date(Date.now() - 1000).toISOString();
 let callSignalTimer = null;
 const handledCallSignals = new Set();
 const queuedCandidates = new Map();
+
+async function logCall(state, status) {
+  if (!state || state.loggedStatus === status) return;
+  state.loggedStatus = status;
+  await fetch('/api/calls/log', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callId: state.callId, fromId: state.initiatorId || currentUser.id, toId: state.initiatorId ? currentUser.id : state.partnerId, mode: state.mode, status }),
+  }).catch(() => {});
+}
 
 function setCallOverlay(partner, status, incoming = false) {
   if (!callOverlay) return;
@@ -713,6 +797,7 @@ function createPeerConnection(state) {
   state.localStream.getTracks().forEach((track) => peerConnection.addTrack(track, state.localStream));
   peerConnection.addEventListener('track', (event) => {
     if (remoteVideo) remoteVideo.srcObject = event.streams[0];
+    document.querySelector('.call-surface')?.classList.add('has-remote-video');
   });
   peerConnection.addEventListener('icecandidate', ({ candidate }) => {
     if (candidate && callState === state) {
@@ -721,7 +806,7 @@ function createPeerConnection(state) {
   });
   peerConnection.addEventListener('connectionstatechange', () => {
     if (callState !== state) return;
-    if (peerConnection.connectionState === 'connected') callStatus.textContent = t('callInProgress');
+    if (peerConnection.connectionState === 'connected') { state.connected = true; callStatus.textContent = t('callInProgress'); }
     if (['failed', 'closed'].includes(peerConnection.connectionState)) endCurrentCall(false);
   });
   return peerConnection;
@@ -748,6 +833,7 @@ async function startCall(mode) {
     }
     setCallOverlay(selectedPartner, t('callCalling'));
     state.peerConnection = createPeerConnection(state);
+    await logCall(state, 'missed');
     const offer = await state.peerConnection.createOffer();
     await state.peerConnection.setLocalDescription(offer);
     await sendCallSignal(state.partnerId, state.callId, 'offer', { description: offer, mode });
@@ -763,7 +849,7 @@ async function acceptIncomingCall() {
   incomingCall = null;
   try {
     const localStream = await getLocalMedia(incoming.mode);
-    const state = { ...incoming, localStream, peerConnection: null };
+    const state = { ...incoming, initiatorId: incoming.partnerId, localStream, peerConnection: null };
     callState = state;
     if (localVideo && state.mode === 'video') {
       localVideo.srcObject = localStream;
@@ -776,6 +862,7 @@ async function acceptIncomingCall() {
     const answer = await state.peerConnection.createAnswer();
     await state.peerConnection.setLocalDescription(answer);
     await sendCallSignal(state.partnerId, state.callId, 'answer', { description: answer });
+    await logCall(state, 'completed');
   } catch (error) {
     await sendCallSignal(incoming.partnerId, incoming.callId, 'decline').catch(() => {});
     endCurrentCall(false);
@@ -800,9 +887,11 @@ async function endCurrentCall(notify = true) {
     state.localStream?.getTracks().forEach((track) => track.stop());
     state.peerConnection?.close();
     if (notify) await sendCallSignal(state.partnerId, state.callId, 'hangup').catch(() => {});
+    await logCall(state, state.connected ? 'completed' : 'missed');
   }
   if (incoming && notify) await sendCallSignal(incoming.partnerId, incoming.callId, 'decline').catch(() => {});
   hideCallOverlay();
+  document.querySelector('.call-surface')?.classList.remove('has-remote-video');
 }
 
 function partnerForSignal(signal) {
@@ -834,10 +923,12 @@ async function handleCallSignal(signal) {
   if (signal.type === 'answer') {
     await state.peerConnection.setRemoteDescription(signal.payload?.description);
     await applyQueuedCandidates(state);
+    await logCall(state, 'completed');
   } else if (signal.type === 'candidate' && signal.payload) {
     if (state.peerConnection.remoteDescription) await state.peerConnection.addIceCandidate(signal.payload);
     else queuedCandidates.set(signal.callId, [...(queuedCandidates.get(signal.callId) || []), signal.payload]);
   } else if (['hangup', 'decline', 'busy'].includes(signal.type)) {
+    if (signal.type !== 'hangup') await logCall(state, 'declined');
     const status = signal.type === 'busy' ? t('callBusy') : t('callDeclined');
     callStatus.textContent = status;
     setTimeout(() => endCurrentCall(false), 800);
@@ -1031,6 +1122,20 @@ if (searchInput && userList && messagesBox) {
   acceptCallBtn?.addEventListener('click', acceptIncomingCall);
   declineCallBtn?.addEventListener('click', declineIncomingCall);
   endCallBtn?.addEventListener('click', () => endCurrentCall());
+  imageInput?.addEventListener('change', async () => {
+    try { pendingMessageImage = await readImage(imageInput.files[0]); }
+    catch (error) { imageInput.value = ''; alert(error.message); }
+  });
+  profileBtn?.addEventListener('click', openProfile);
+  closeProfileBtn?.addEventListener('click', closeProfile);
+  profileForm?.addEventListener('submit', saveProfile);
+  profileImageInput?.addEventListener('change', async () => {
+    try {
+      pendingAvatarImage = await readImage(profileImageInput.files[0]);
+      profileAvatarPreview.parentElement.style.backgroundImage = `url("${pendingAvatarImage}")`;
+      profileAvatarPreview.style.color = 'transparent';
+    } catch (error) { profileImageInput.value = ''; alert(error.message); }
+  });
   bootChatPage();
 }
 

@@ -31,7 +31,10 @@
             </div>
           </div>
           <div id="currentUserBadge" class="current-user-badge"></div>
-          <button id="logoutBtn" class="auth-secondary-btn" data-i18n="logoutBtn">Выйти</button>
+          <div class="sidebar-actions">
+            <button id="profileBtn" class="auth-secondary-btn" type="button" data-i18n="profileBtn">Профиль</button>
+            <button id="logoutBtn" class="auth-secondary-btn" data-i18n="logoutBtn">Выйти</button>
+          </div>
         </div>
 
         <div class="search-section">
@@ -73,6 +76,10 @@
         <div id="messages" class="messages"></div>
 
         <div class="composer">
+          <label class="attachment-btn" data-i18n-title="attachPhotoTitle" title="Прикрепить фото" aria-label="Прикрепить фото">
+            <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </label>
           <input id="messageInput" data-i18n-ph="phMessage" placeholder="Напишите сообщение..." autocomplete="off" />
           <button id="sendBtn" class="send-btn">
             <span data-i18n="sendBtn">Отправить</span>
@@ -81,6 +88,17 @@
         </div>
       </section>
     </main>
+
+    <section id="profileModal" class="profile-modal hidden">
+      <form id="profileForm" class="profile-dialog">
+        <div class="profile-dialog-header"><strong data-i18n="profileTitle">Профиль</strong><button id="closeProfileBtn" class="close-btn" type="button" aria-label="Закрыть">×</button></div>
+        <label class="profile-avatar-picker" for="profileImageInput"><span id="profileAvatarPreview">?</span><input id="profileImageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></label>
+        <label class="block-label" for="profileNameInput" data-i18n="profileNameLabel">Имя</label>
+        <input id="profileNameInput" maxlength="80" required />
+        <div class="profile-user-id"><span data-i18n="profileUserIdLabel">User ID</span>: <span id="profileUserId"></span></div>
+        <button class="primary-btn" type="submit" data-i18n="saveProfileBtn">Сохранить</button>
+      </form>
+    </section>
 
     <section id="callOverlay" class="call-overlay hidden" aria-live="polite">
       <div class="call-surface">
