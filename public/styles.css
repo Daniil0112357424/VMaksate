@@ -126,6 +126,9 @@ button:active {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
+.sidebar-actions { display: flex; gap: 8px; }
+.sidebar-actions .auth-secondary-btn { width: auto; flex: 1; }
+
 .danger-btn {
   background: var(--danger-gradient);
   color: #ffffff;
@@ -694,6 +697,12 @@ button:active {
 .call-control.decline { background: #e11d48; transform: rotate(135deg); }
 .call-control.decline:hover { background: #be123c; }
 
+.avatar-photo { background-size: cover !important; background-position: center; color: transparent !important; }
+.call-surface.has-remote-video .call-information { top: 16px; left: 16px; align-items: flex-start; text-align: left; gap: 2px; padding: 8px 10px; background: rgba(4, 9, 18, .62); border-radius: var(--radius-sm); }
+.call-surface.has-remote-video .call-avatar { display: none; }
+.call-surface.has-remote-video .call-information strong { font-size: 14px; }
+.call-surface.has-remote-video .call-information span { font-size: 12px; }
+
 /* Messages List */
 .messages {
   flex: 1;
@@ -779,6 +788,9 @@ button:active {
   opacity: 0.7;
 }
 
+.message-image { display: block; max-width: min(360px, 100%); max-height: 420px; border-radius: var(--radius-sm); object-fit: cover; margin-top: 6px; }
+.call-message { align-self: center; max-width: 100%; padding: 7px 12px; background: transparent; color: var(--text-muted); font-size: 12px; }
+
 /* Chat Composer */
 .composer {
   padding: 14px 20px;
@@ -789,6 +801,18 @@ button:active {
   align-items: center;
   flex-shrink: 0;
 }
+
+.attachment-btn { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 42px; cursor: pointer; color: var(--text-secondary); }
+.attachment-btn:hover { color: #93c5fd; }
+
+.profile-modal { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; background: rgba(4, 9, 18, .72); }
+.profile-modal.hidden { display: none; }
+.profile-dialog { width: min(380px, 100%); display: flex; flex-direction: column; gap: 14px; padding: 20px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.profile-dialog-header { display: flex; align-items: center; justify-content: space-between; font-size: 18px; }
+.close-btn { width: 34px; height: 34px; padding: 0; background: transparent; color: var(--text-secondary); font-size: 25px; }
+.profile-avatar-picker { width: 84px; height: 84px; margin: 0 auto; border-radius: 50%; overflow: hidden; cursor: pointer; background: var(--accent-gradient); display: grid; place-items: center; color: white; font-size: 30px; font-weight: 700; background-size: cover; background-position: center; }
+.profile-avatar-picker span { display: grid; place-items: center; width: 100%; height: 100%; }
+.profile-user-id { color: var(--text-muted); font-size: 13px; }
 
 .composer input {
   flex: 1;
