@@ -75,11 +75,22 @@
 
         <div id="messages" class="messages"></div>
 
+        <div id="attachmentPreview" class="attachment-preview hidden">
+          <img id="attachmentPreviewImage" alt="" />
+          <span id="attachmentPreviewName"></span>
+          <button id="removeAttachmentBtn" type="button" aria-label="Удалить вложение">×</button>
+        </div>
         <div class="composer">
           <label class="attachment-btn" data-i18n-title="attachPhotoTitle" title="Прикрепить фото" aria-label="Прикрепить фото">
             <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
           </label>
+          <div class="sticker-menu-wrap">
+            <button id="stickerBtn" class="attachment-btn" type="button" data-i18n-title="stickersTitle" title="Стикеры" aria-label="Стикеры">
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+            </button>
+            <div id="stickerMenu" class="sticker-menu hidden"><button id="etoRealnoSticker" type="button" title="Это реально"><img src="/stickers/eto-realno.jpg" alt="Это реально" /></button></div>
+          </div>
           <input id="messageInput" data-i18n-ph="phMessage" placeholder="Напишите сообщение..." autocomplete="off" />
           <button id="sendBtn" class="send-btn">
             <span data-i18n="sendBtn">Отправить</span>
