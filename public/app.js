@@ -31,6 +31,9 @@ const translations = {
     phMessage: 'Напишите сообщение...',
     sendBtn: 'Отправить',
     alertSelectPartner: 'Сначала войдите в аккаунт и выберите собеседника.',
+    audioCallTitle: 'Аудиозвонок', videoCallTitle: 'Видеозвонок', acceptCallTitle: 'Ответить', declineCallTitle: 'Отклонить', endCallTitle: 'Завершить звонок',
+    callIncoming: 'Входящий звонок...', callCalling: 'Звоним...', callConnecting: 'Подключение...', callInProgress: 'В звонке', callDeclined: 'Звонок отклонён', callBusy: 'Пользователь уже разговаривает',
+    callMediaError: 'Не удалось получить доступ к микрофону или камере.', callUnsupported: 'Звонки не поддерживаются этим браузером.',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -78,6 +81,9 @@ const translations = {
     phMessage: 'Type a message...',
     sendBtn: 'Send',
     alertSelectPartner: 'Please sign in and select a user first.',
+    audioCallTitle: 'Audio call', videoCallTitle: 'Video call', acceptCallTitle: 'Answer', declineCallTitle: 'Decline', endCallTitle: 'End call',
+    callIncoming: 'Incoming call...', callCalling: 'Calling...', callConnecting: 'Connecting...', callInProgress: 'In call', callDeclined: 'Call declined', callBusy: 'User is already in a call',
+    callMediaError: 'Unable to access the microphone or camera.', callUnsupported: 'Calls are not supported by this browser.',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -125,6 +131,9 @@ const translations = {
     phMessage: 'Escriba un mensaje...',
     sendBtn: 'Enviar',
     alertSelectPartner: 'Primero inicie sesión y seleccione un interlocutor.',
+    audioCallTitle: 'Llamada de audio', videoCallTitle: 'Videollamada', acceptCallTitle: 'Responder', declineCallTitle: 'Rechazar', endCallTitle: 'Finalizar llamada',
+    callIncoming: 'Llamada entrante...', callCalling: 'Llamando...', callConnecting: 'Conectando...', callInProgress: 'En llamada', callDeclined: 'Llamada rechazada', callBusy: 'El usuario ya está en una llamada',
+    callMediaError: 'No se pudo acceder al micrófono o la cámara.', callUnsupported: 'Este navegador no admite llamadas.',
 
     // Admin page
     adminTitle: 'Panel de Admin',
@@ -229,6 +238,17 @@ const sendBtn = document.getElementById('sendBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const currentUserBadge = document.getElementById('currentUserBadge');
 const mobileBackBtn = document.getElementById('mobileBackBtn');
+const audioCallBtn = document.getElementById('audioCallBtn');
+const videoCallBtn = document.getElementById('videoCallBtn');
+const callOverlay = document.getElementById('callOverlay');
+const remoteVideo = document.getElementById('remoteVideo');
+const localVideo = document.getElementById('localVideo');
+const callAvatar = document.getElementById('callAvatar');
+const callPartnerName = document.getElementById('callPartnerName');
+const callStatus = document.getElementById('callStatus');
+const acceptCallBtn = document.getElementById('acceptCallBtn');
+const declineCallBtn = document.getElementById('declineCallBtn');
+const endCallBtn = document.getElementById('endCallBtn');
 
 function renderCurrentUserBadge() {
   if (!currentUserBadge) return;
@@ -251,6 +271,8 @@ function updateChatHeader(user) {
   if (!user) {
     chatPartner.textContent = t('selectPartnerPlaceholder');
     if (partnerAvatar) partnerAvatar.classList.add('hidden');
+    if (audioCallBtn) audioCallBtn.disabled = true;
+    if (videoCallBtn) videoCallBtn.disabled = true;
     return;
   }
   chatPartner.textContent = `${user.label} (${user.id})`;
@@ -259,6 +281,9 @@ function updateChatHeader(user) {
     partnerAvatar.style.background = getAvatarBg(user.label || user.id);
     partnerAvatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
   }
+  const callsUnavailable = !window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia;
+  if (audioCallBtn) audioCallBtn.disabled = callsUnavailable;
+  if (videoCallBtn) videoCallBtn.disabled = callsUnavailable;
 }
 
 function applyLanguage(lang) {
@@ -278,6 +303,14 @@ function applyLanguage(lang) {
     const key = el.getAttribute('data-i18n-ph');
     if (key) {
       el.placeholder = t(key);
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-title]').forEach((el) => {
+    const key = el.getAttribute('data-i18n-title');
+    if (key) {
+      el.title = t(key);
+      el.setAttribute('aria-label', t(key));
     }
   });
 
@@ -629,6 +662,209 @@ async function sendMessage() {
   }
 }
 
+const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+let callState = null;
+let incomingCall = null;
+let callSignalCursor = new Date(Date.now() - 1000).toISOString();
+let callSignalTimer = null;
+const handledCallSignals = new Set();
+const queuedCandidates = new Map();
+
+function setCallOverlay(partner, status, incoming = false) {
+  if (!callOverlay) return;
+  callOverlay.classList.remove('hidden');
+  callPartnerName.textContent = partner?.label || partner?.id || '';
+  callStatus.textContent = status;
+  callAvatar.textContent = (partner?.label || partner?.id || '?').charAt(0).toUpperCase();
+  callAvatar.style.background = getAvatarBg(partner?.label || partner?.id);
+  acceptCallBtn?.classList.toggle('hidden', !incoming);
+  declineCallBtn?.classList.toggle('hidden', !incoming);
+  endCallBtn?.classList.toggle('hidden', incoming);
+}
+
+function hideCallOverlay() {
+  callOverlay?.classList.add('hidden');
+  if (remoteVideo) remoteVideo.srcObject = null;
+  if (localVideo) {
+    localVideo.srcObject = null;
+    localVideo.classList.add('hidden');
+  }
+}
+
+async function sendCallSignal(toId, callId, type, payload = null) {
+  const response = await fetch('/api/calls/signal', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ callId, fromId: currentUser.id, toId, type, payload }),
+  });
+  if (!response.ok) throw new Error('Unable to send call signal.');
+}
+
+async function getLocalMedia(mode) {
+  try {
+    return await navigator.mediaDevices.getUserMedia({ audio: true, video: mode === 'video' });
+  } catch (error) {
+    throw new Error(t('callMediaError'));
+  }
+}
+
+function createPeerConnection(state) {
+  const peerConnection = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  state.localStream.getTracks().forEach((track) => peerConnection.addTrack(track, state.localStream));
+  peerConnection.addEventListener('track', (event) => {
+    if (remoteVideo) remoteVideo.srcObject = event.streams[0];
+  });
+  peerConnection.addEventListener('icecandidate', ({ candidate }) => {
+    if (candidate && callState === state) {
+      sendCallSignal(state.partnerId, state.callId, 'candidate', candidate.toJSON()).catch(() => {});
+    }
+  });
+  peerConnection.addEventListener('connectionstatechange', () => {
+    if (callState !== state) return;
+    if (peerConnection.connectionState === 'connected') callStatus.textContent = t('callInProgress');
+    if (['failed', 'closed'].includes(peerConnection.connectionState)) endCurrentCall(false);
+  });
+  return peerConnection;
+}
+
+async function applyQueuedCandidates(state) {
+  const candidates = queuedCandidates.get(state.callId) || [];
+  for (const candidate of candidates) await state.peerConnection.addIceCandidate(candidate);
+  queuedCandidates.delete(state.callId);
+}
+
+async function startCall(mode) {
+  if (!selectedPartner) return;
+  if (!window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia) return alert(t('callUnsupported'));
+  if (callState || incomingCall) return;
+
+  try {
+    const localStream = await getLocalMedia(mode);
+    const state = { callId: crypto.randomUUID(), partnerId: selectedPartner.id, partner: selectedPartner, mode, localStream, peerConnection: null };
+    callState = state;
+    if (localVideo && mode === 'video') {
+      localVideo.srcObject = localStream;
+      localVideo.classList.remove('hidden');
+    }
+    setCallOverlay(selectedPartner, t('callCalling'));
+    state.peerConnection = createPeerConnection(state);
+    const offer = await state.peerConnection.createOffer();
+    await state.peerConnection.setLocalDescription(offer);
+    await sendCallSignal(state.partnerId, state.callId, 'offer', { description: offer, mode });
+  } catch (error) {
+    endCurrentCall(false);
+    alert(error.message || t('callMediaError'));
+  }
+}
+
+async function acceptIncomingCall() {
+  if (!incomingCall || callState) return;
+  const incoming = incomingCall;
+  incomingCall = null;
+  try {
+    const localStream = await getLocalMedia(incoming.mode);
+    const state = { ...incoming, localStream, peerConnection: null };
+    callState = state;
+    if (localVideo && state.mode === 'video') {
+      localVideo.srcObject = localStream;
+      localVideo.classList.remove('hidden');
+    }
+    setCallOverlay(state.partner, t('callConnecting'));
+    state.peerConnection = createPeerConnection(state);
+    await state.peerConnection.setRemoteDescription(incoming.description);
+    await applyQueuedCandidates(state);
+    const answer = await state.peerConnection.createAnswer();
+    await state.peerConnection.setLocalDescription(answer);
+    await sendCallSignal(state.partnerId, state.callId, 'answer', { description: answer });
+  } catch (error) {
+    await sendCallSignal(incoming.partnerId, incoming.callId, 'decline').catch(() => {});
+    endCurrentCall(false);
+    alert(error.message || t('callMediaError'));
+  }
+}
+
+async function declineIncomingCall() {
+  if (!incomingCall) return;
+  const incoming = incomingCall;
+  incomingCall = null;
+  await sendCallSignal(incoming.partnerId, incoming.callId, 'decline').catch(() => {});
+  hideCallOverlay();
+}
+
+async function endCurrentCall(notify = true) {
+  const state = callState;
+  const incoming = incomingCall;
+  callState = null;
+  incomingCall = null;
+  if (state) {
+    state.localStream?.getTracks().forEach((track) => track.stop());
+    state.peerConnection?.close();
+    if (notify) await sendCallSignal(state.partnerId, state.callId, 'hangup').catch(() => {});
+  }
+  if (incoming && notify) await sendCallSignal(incoming.partnerId, incoming.callId, 'decline').catch(() => {});
+  hideCallOverlay();
+}
+
+function partnerForSignal(signal) {
+  return currentUserList.find((user) => user.id === signal.fromId) || { id: signal.fromId, label: signal.fromId };
+}
+
+async function handleCallSignal(signal) {
+  if (handledCallSignals.has(signal.id)) return;
+  handledCallSignals.add(signal.id);
+  if (handledCallSignals.size > 500) handledCallSignals.clear();
+
+  if (signal.type === 'offer') {
+    if (callState || incomingCall) {
+      return sendCallSignal(signal.fromId, signal.callId, 'busy').catch(() => {});
+    }
+    const partner = partnerForSignal(signal);
+    incomingCall = { callId: signal.callId, partnerId: signal.fromId, partner, mode: signal.payload?.mode === 'video' ? 'video' : 'audio', description: signal.payload?.description };
+    setCallOverlay(partner, t('callIncoming'), true);
+    return;
+  }
+
+  const state = callState;
+  if (!state || state.callId !== signal.callId || state.partnerId !== signal.fromId) {
+    if (incomingCall && incomingCall.callId === signal.callId && signal.type === 'candidate' && signal.payload) {
+      queuedCandidates.set(signal.callId, [...(queuedCandidates.get(signal.callId) || []), signal.payload]);
+    }
+    return;
+  }
+  if (signal.type === 'answer') {
+    await state.peerConnection.setRemoteDescription(signal.payload?.description);
+    await applyQueuedCandidates(state);
+  } else if (signal.type === 'candidate' && signal.payload) {
+    if (state.peerConnection.remoteDescription) await state.peerConnection.addIceCandidate(signal.payload);
+    else queuedCandidates.set(signal.callId, [...(queuedCandidates.get(signal.callId) || []), signal.payload]);
+  } else if (['hangup', 'decline', 'busy'].includes(signal.type)) {
+    const status = signal.type === 'busy' ? t('callBusy') : t('callDeclined');
+    callStatus.textContent = status;
+    setTimeout(() => endCurrentCall(false), 800);
+  }
+}
+
+async function pollCallSignals() {
+  if (!currentUser) return;
+  try {
+    const response = await fetch(`/api/calls/signals?for=${encodeURIComponent(currentUser.id)}&after=${encodeURIComponent(callSignalCursor)}`);
+    if (!response.ok) return;
+    const { signals = [] } = await response.json();
+    for (const signal of signals) {
+      if (signal.createdAt > callSignalCursor) callSignalCursor = signal.createdAt;
+      await handleCallSignal(signal);
+    }
+  } catch (error) {
+    // Signalling retries on the next short poll; a chat remains usable meanwhile.
+  }
+}
+
+function startCallSignalPolling() {
+  if (callSignalTimer) return;
+  pollCallSignals();
+  callSignalTimer = setInterval(pollCallSignals, 1200);
+}
+
 async function loadCurrentUser() {
   const response = await fetch('/api/auth/me');
   const data = await response.json();
@@ -704,6 +940,7 @@ async function bootChatPage() {
   loadMessages();
   searchUsers();
   startChatRefresh();
+  startCallSignalPolling();
 }
 
 if (mobileBackBtn) {
@@ -789,5 +1026,22 @@ if (searchInput && userList && messagesBox) {
       sendMessage();
     }
   });
+  audioCallBtn?.addEventListener('click', () => startCall('audio'));
+  videoCallBtn?.addEventListener('click', () => startCall('video'));
+  acceptCallBtn?.addEventListener('click', acceptIncomingCall);
+  declineCallBtn?.addEventListener('click', declineIncomingCall);
+  endCallBtn?.addEventListener('click', () => endCurrentCall());
   bootChatPage();
 }
+
+window.addEventListener('beforeunload', () => {
+  if (callState && currentUser) {
+    navigator.sendBeacon('/api/calls/signal', new Blob([JSON.stringify({
+      callId: callState.callId,
+      fromId: currentUser.id,
+      toId: callState.partnerId,
+      type: 'hangup',
+    })], { type: 'application/json' }));
+  }
+  callState?.localStream?.getTracks().forEach((track) => track.stop());
+});

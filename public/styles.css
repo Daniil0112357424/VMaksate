@@ -628,6 +628,72 @@ button:active {
   color: var(--text-primary);
 }
 
+.call-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.call-icon-btn,
+.call-control {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.call-icon-btn {
+  background: var(--bg-input);
+  color: #93c5fd;
+  border: 1px solid var(--border-color);
+}
+
+.call-icon-btn:hover:not(:disabled) {
+  background: #1e3a5f;
+  color: #dbeafe;
+}
+
+.call-icon-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+
+.call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 9, 18, 0.9);
+}
+
+.call-overlay.hidden,
+.call-control.hidden,
+.local-video.hidden { display: none; }
+
+.call-surface {
+  width: min(720px, 100%);
+  min-height: min(560px, calc(100dvh - 40px));
+  position: relative;
+  overflow: hidden;
+  background: #101827;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  display: grid;
+  place-items: center;
+}
+
+.remote-video { width: 100%; height: 100%; object-fit: cover; background: #101827; }
+.local-video { position: absolute; right: 18px; top: 18px; width: 150px; aspect-ratio: 16 / 10; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,.2); background: #1c2940; }
+
+.call-information { position: absolute; top: 22%; display: flex; flex-direction: column; align-items: center; gap: 9px; text-align: center; color: white; }
+.call-information strong { font-size: 20px; }
+.call-information span { color: var(--text-secondary); font-size: 14px; }
+.call-avatar { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-gradient); font-size: 32px; font-weight: 700; }
+.call-controls { position: absolute; bottom: 30px; display: flex; align-items: center; gap: 16px; }
+.call-control { color: white; }
+.call-control.accept { background: #16a34a; }
+.call-control.decline { background: #e11d48; transform: rotate(135deg); }
+.call-control.decline:hover { background: #be123c; }
+
 /* Messages List */
 .messages {
   flex: 1;
@@ -800,6 +866,9 @@ button:active {
   .chat-header {
     padding: 12px 14px;
   }
+
+  .call-surface { min-height: calc(100dvh - 28px); }
+  .local-video { width: 112px; right: 12px; top: 12px; }
 
   .messages {
     padding: 14px;

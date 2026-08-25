@@ -60,6 +60,14 @@
               <strong id="chatPartner" data-i18n="selectPartnerPlaceholder">Выберите собеседника</strong>
             </div>
           </div>
+          <div class="call-actions">
+            <button id="audioCallBtn" class="call-icon-btn" type="button" disabled data-i18n-title="audioCallTitle" title="Аудиозвонок" aria-label="Аудиозвонок">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.64a2 2 0 0 1-.45 2.11L8.01 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.86.29 1.74.5 2.64.62A2 2 0 0 1 22 16.92z"/></svg>
+            </button>
+            <button id="videoCallBtn" class="call-icon-btn" type="button" disabled data-i18n-title="videoCallTitle" title="Видеозвонок" aria-label="Видеозвонок">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            </button>
+          </div>
         </div>
 
         <div id="messages" class="messages"></div>
@@ -73,6 +81,29 @@
         </div>
       </section>
     </main>
+
+    <section id="callOverlay" class="call-overlay hidden" aria-live="polite">
+      <div class="call-surface">
+        <video id="remoteVideo" class="remote-video" autoplay playsinline></video>
+        <video id="localVideo" class="local-video hidden" autoplay muted playsinline></video>
+        <div class="call-information">
+          <div id="callAvatar" class="call-avatar">?</div>
+          <strong id="callPartnerName">Звонок</strong>
+          <span id="callStatus">Подключение...</span>
+        </div>
+        <div class="call-controls">
+          <button id="acceptCallBtn" class="call-control accept hidden" type="button" data-i18n-title="acceptCallTitle" title="Ответить" aria-label="Ответить">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.64a2 2 0 0 1-.45 2.11L8.01 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.86.29 1.74.5 2.64.62A2 2 0 0 1 22 16.92z"/></svg>
+          </button>
+          <button id="declineCallBtn" class="call-control decline hidden" type="button" data-i18n-title="declineCallTitle" title="Отклонить" aria-label="Отклонить">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4l16 16M20 4 4 20"/></svg>
+          </button>
+          <button id="endCallBtn" class="call-control decline" type="button" data-i18n-title="endCallTitle" title="Завершить звонок" aria-label="Завершить звонок">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.64a2 2 0 0 1-.45 2.11L8.01 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.86.29 1.74.5 2.64.62A2 2 0 0 1 22 16.92z"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
 
     <script src="/app.js"></script>
   </body>
