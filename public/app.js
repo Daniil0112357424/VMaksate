@@ -256,6 +256,9 @@ const acceptCallBtn = document.getElementById('acceptCallBtn');
 const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
 const imageInput = document.getElementById('imageInput');
+const stickerBtn = document.getElementById('stickerBtn');
+const stickerMenu = document.getElementById('stickerMenu');
+const etoRealnoSticker = document.getElementById('etoRealnoSticker');
 const profileBtn = document.getElementById('profileBtn');
 const profileModal = document.getElementById('profileModal');
 const profileForm = document.getElementById('profileForm');
@@ -612,14 +615,23 @@ async function loadMessages() {
       div.appendChild(sender);
     }
 
-    if (item.text) {
+    const stickerUrl = item.type === 'sticker' ? (item.imageData || '/stickers/eto-realno.jpg') : null;
+    if (stickerUrl) {
+      const sticker = document.createElement('img');
+      sticker.className = 'message-sticker';
+      sticker.src = stickerUrl;
+      sticker.alt = 'Sticker';
+      div.appendChild(sticker);
+    }
+
+    if (item.text && item.type !== 'sticker') {
       const text = document.createElement('div');
       text.className = 'message-text';
       text.textContent = item.text;
       div.appendChild(text);
     }
 
-    if (item.imageData) {
+    if (item.imageData && item.type !== 'sticker') {
       const image = document.createElement('img');
       image.className = 'message-image';
       image.src = item.imageData;
@@ -1111,6 +1123,45 @@ if (logoutBtn) {
 if (searchInput && userList && messagesBox) {
   searchInput.addEventListener('input', searchUsers);
   searchBtn?.addEventListener('click', searchUsers);
+  const toggleStickerMenu = () => {
+    if (!stickerMenu) return;
+    stickerMenu.classList.toggle('hidden');
+  };
+  stickerBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleStickerMenu();
+  });
+  document.addEventListener('click', (event) => {
+    if (!stickerMenu || !stickerBtn) return;
+    if (!stickerMenu.contains(event.target) && !stickerBtn.contains(event.target)) {
+      stickerMenu.classList.add('hidden');
+    }
+  });
+  etoRealnoSticker?.addEventListener('click', async () => {
+    if (!currentUser || !selectedPartner) {
+      alert(t('alertSelectPartner'));
+      return;
+    }
+    stickerMenu?.classList.add('hidden');
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromId: currentUser.id,
+          toId: selectedPartner.id,
+          stickerId: 'eto-realno',
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Unable to send sticker.');
+      }
+      await loadMessages();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
   sendBtn.addEventListener('click', sendMessage);
   messageInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {

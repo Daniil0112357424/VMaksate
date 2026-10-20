@@ -237,17 +237,20 @@ const storeReady = readStoreFromDiskOrDb().then((data) => {
 }).catch((err) => console.error('Initial store load failed:', err));
 
 function toAppMessage(message) {
+  const stickerId = message.sticker_id || null;
+  const type = String(message.type || 'text');
+
   return {
     id: String(message.id),
     fromId: String(message.from_id),
     toId: String(message.to_id),
-    text: String(message.text),
-    imageData: message.image_data || null,
-    type: message.type || 'text',
+    text: String(message.text || ''),
+    imageData: message.image_data || (type === 'sticker' ? getStickerAssetUrl(stickerId) : null),
+    type,
     callId: message.call_id || null,
     callMode: message.call_mode || null,
     callStatus: message.call_status || null,
-    stickerId: message.sticker_id || null,
+    stickerId,
     reactions: message.reactions || {},
     readAt: message.read_at || null,
     createdAt: String(message.created_at),
@@ -278,6 +281,12 @@ function sanitizeUser(user) {
     label: user.label,
     avatarData: user.avatar_data || user.avatarData || null,
   };
+}
+
+function getStickerAssetUrl(stickerId) {
+  const normalized = String(stickerId || '').trim();
+  if (!normalized) return null;
+  return `/stickers/${normalized}.jpg`;
 }
 
 const MAX_IMAGE_DATA_LENGTH = 1_500_000;
@@ -643,47 +652,55 @@ app.get('/api/chat', async (req, res) => {
 });
 
 app.post('/api/chat', async (req, res) => {
-  const { fromId, toId, text = '', imageData = null, stickerId = null } = req.body || {};
+  try {
+    const { fromId, toId, text = '', imageData = null, stickerId = null } = req.body || {};
 
-  if (!fromId || !toId || (!String(text).trim() && !imageData && !stickerId) || String(text).length > 4000 || (imageData && !validImageData(imageData)) || (stickerId && stickerId !== 'eto-realno')) {
-    return res.status(400).json({ error: 'Invalid message.' });
+    if (!fromId || !toId || (!String(text).trim() && !imageData && !stickerId) || String(text).length > 4000 || (imageData && !validImageData(imageData)) || (stickerId && stickerId !== 'eto-realno')) {
+      return res.status(400).json({ error: 'Invalid message.' });
+    }
+
+    await storeReady;
+
+    const message = {
+      id: randomUUID(),
+      fromId: String(fromId),
+      toId: String(toId),
+      text: String(text),
+      imageData,
+      type: stickerId ? 'sticker' : imageData ? 'image' : 'text',
+      stickerId,
+      reactions: {},
+      readAt: null,
+      createdAt: new Date().toISOString(),
+    };
+
+    if (supabaseEnabled) {
+      const { error } = await supabase.from('messages').insert(toDatabaseMessage(message));
+      if (error) {
+        console.error('Supabase insert failed for sticker chat message:', error);
+        return res.status(500).json({ error: 'Unable to send message.' });
+      }
+    } else if (firebaseEnabled && firebaseDb) {
+      // A message is one independent document. Replacing the entire collection
+      // caused concurrent requests to delete each other's messages.
+      await Promise.all([
+        firebaseDb.collection('messages').doc(message.id).set(message),
+        firebaseDb.collection('users').doc(String(fromId)).set({ id: String(fromId) }, { merge: true }),
+        firebaseDb.collection('users').doc(String(toId)).set({ id: String(toId) }, { merge: true }),
+      ]);
+      invalidateFirestoreCache();
+    } else {
+      ensureUser(String(fromId), String(fromId));
+      ensureUser(String(toId), String(toId));
+      memoryStore.messages.push(message);
+      persistStore();
+    }
+
+    res.json({ ok: true, message });
+  } catch (error) {
+    console.error('Failed to send chat message:', error);
+    return res.status(500).json({ error: 'Unable to send message.' });
   }
-
-  await storeReady;
-
-  const message = {
-    id: randomUUID(),
-    fromId: String(fromId),
-    toId: String(toId),
-    text: String(text),
-    imageData,
-    type: stickerId ? 'sticker' : imageData ? 'image' : 'text',
-    stickerId,
-    reactions: {},
-    readAt: null,
-    createdAt: new Date().toISOString(),
-  };
-
-  if (supabaseEnabled) {
-    const { error } = await supabase.from('messages').insert(toDatabaseMessage(message));
-    if (error) throw error;
-  } else if (firebaseEnabled && firebaseDb) {
-    // A message is one independent document. Replacing the entire collection
-    // caused concurrent requests to delete each other's messages.
-    await Promise.all([
-      firebaseDb.collection('messages').doc(message.id).set(message),
-      firebaseDb.collection('users').doc(String(fromId)).set({ id: String(fromId) }, { merge: true }),
-      firebaseDb.collection('users').doc(String(toId)).set({ id: String(toId) }, { merge: true }),
-    ]);
-    invalidateFirestoreCache();
-  } else {
-    ensureUser(String(fromId), String(fromId));
-    ensureUser(String(toId), String(toId));
-    memoryStore.messages.push(message);
-    persistStore();
-  }
-
-  res.json({ ok: true, message });
 });
 
 app.post('/api/calls/log', async (req, res) => {
