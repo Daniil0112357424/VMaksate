@@ -26,7 +26,7 @@ alter table public.messages add column if not exists read_at timestamptz;
 
 alter table public.messages drop constraint if exists messages_text_check;
 alter table public.messages add constraint messages_text_check
-  check ((char_length(text) between 0 and 4000) and (char_length(text) > 0 or image_data is not null or type = 'call'));
+  check ((char_length(text) between 0 and 4000) and (char_length(text) > 0 or image_data is not null or sticker_id is not null or type in ('call', 'sticker')));
 
 create index if not exists messages_from_to_created_at_idx
   on public.messages (from_id, to_id, created_at);

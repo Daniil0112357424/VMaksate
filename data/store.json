@@ -4,7 +4,31 @@
       "id": "user-42",
       "label": "Иван",
       "password": "123"
+    },
+    {
+      "id": "demo1",
+      "label": "demo1",
+      "password": ""
+    },
+    {
+      "id": "demo2",
+      "label": "demo2",
+      "password": ""
     }
   ],
-  "messages": []
+  "messages": [
+    {
+      "id": "41aa8c44-9370-49e8-bfaf-858ff893c8a8",
+      "fromId": "demo1",
+      "toId": "demo2",
+      "text": "",
+      "imageData": null,
+      "type": "sticker",
+      "stickerId": "eto-realno",
+      "reactions": {},
+      "readAt": null,
+      "createdAt": "2026-10-20T16:54:25.944Z"
+    }
+  ],
+  "callSignals": []
 }
