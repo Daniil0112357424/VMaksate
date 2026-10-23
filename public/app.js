@@ -524,10 +524,19 @@ function renderUsers(users) {
 }
 
 async function refreshUnreadIndicators() {
-  if (!currentUser || currentUserList.length === 0) return;
+  if (!currentUser) return;
   const response = await fetch('/api/chat/unread');
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Unable to refresh unread messages.');
+  const knownUsers = new Set(currentUserList.map((user) => user.id));
+  const search = searchInput?.value.trim().toLowerCase() || '';
+  (data.users || []).forEach((user) => {
+    const matchesSearch = !search || user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
+    if (!knownUsers.has(user.id) && matchesSearch) {
+      currentUserList.push(user);
+      knownUsers.add(user.id);
+    }
+  });
   unreadUsers.clear();
   (data.userIds || []).forEach((userId) => {
     if (selectedPartner?.id !== userId) unreadUsers.add(userId);
@@ -541,6 +550,7 @@ async function searchUsers() {
   const me = currentUser?.id || '';
   const response = await fetch(`/api/users?search=${encodeURIComponent(search)}&me=${encodeURIComponent(me)}`);
   const users = await response.json();
+  if (!response.ok) throw new Error(users.error || 'Unable to load users.');
   renderUsers(users);
   await refreshUnreadIndicators();
 }
@@ -554,6 +564,7 @@ setInterval(() => {
 let latestMessagesRequest = 0;
 let renderedMessagesPartnerId = null;
 let renderedMessagesSignature = '';
+let mobileActionsTimeout = null;
 
 function getMessagesSignature(messages) {
   return JSON.stringify(messages.map((message) => [
@@ -706,29 +717,62 @@ async function loadMessages() {
     actionsToggle.setAttribute('aria-label', t('messageActionsTitle'));
     actionsToggle.setAttribute('title', t('messageActionsTitle'));
     actionsToggle.setAttribute('aria-expanded', 'false');
-    actionsToggle.textContent = '⌄';
+    actionsToggle.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.6" fill="currentColor"></circle><circle cx="12" cy="12" r="1.6" fill="currentColor"></circle><circle cx="19" cy="12" r="1.6" fill="currentColor"></circle></svg>';
     const actionsMenu = document.createElement('div');
     actionsMenu.className = 'message-actions-menu hidden';
     actionsToggle.addEventListener('click', (event) => {
       event.stopPropagation();
       const open = actionsMenu.classList.toggle('hidden') === false;
       actionsToggle.setAttribute('aria-expanded', String(open));
+      if (!open && window.matchMedia('(hover: none)').matches) {
+        clearTimeout(mobileActionsTimeout);
+        mobileActionsTimeout = setTimeout(() => div.classList.remove('actions-visible'), 4000);
+      }
     });
     actionsMenu.addEventListener('click', (event) => event.stopPropagation());
+    div.addEventListener('click', (event) => {
+      if (!window.matchMedia('(hover: none)').matches || event.target.closest('button')) return;
+      document.querySelectorAll('.message.actions-visible').forEach((message) => {
+        if (message !== div) message.classList.remove('actions-visible');
+      });
+      div.classList.add('actions-visible');
+      clearTimeout(mobileActionsTimeout);
+      mobileActionsTimeout = setTimeout(() => {
+        if (actionsMenu.classList.contains('hidden')) div.classList.remove('actions-visible');
+      }, 4000);
+    });
+
+    const reactionSummary = document.createElement('div');
+    reactionSummary.className = 'message-reactions';
+    const renderReactionSummary = () => {
+      reactionSummary.replaceChildren();
+      reactionOptions.forEach(({ key, emoji, label }) => {
+        const users = Array.isArray(item.reactions?.[key]) ? item.reactions[key] : [];
+        if (!users.length) return;
+        const badge = document.createElement('span');
+        badge.className = 'message-reaction-summary';
+        badge.setAttribute('aria-label', `${label}: ${users.length}`);
+        badge.textContent = `${emoji} ${users.length}`;
+        reactionSummary.appendChild(badge);
+      });
+      reactionSummary.classList.toggle('hidden', reactionSummary.childElementCount === 0);
+    };
+    renderReactionSummary();
+    div.appendChild(reactionSummary);
 
     const reactions = document.createElement('div');
-    reactions.className = 'message-reactions';
+    reactions.className = 'message-reaction-picker';
     const reactionButtons = [];
     reactionOptions.forEach(({ key, emoji, label }) => {
       const users = Array.isArray(reactionUsers[key]) ? reactionUsers[key] : [];
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'message-reaction';
+      button.className = 'message-reaction-option';
       button.classList.toggle('active', users.includes(currentUser.id));
       button.setAttribute('aria-label', `${label}: ${users.length}`);
       button.setAttribute('title', label);
       button.setAttribute('aria-pressed', String(users.includes(currentUser.id)));
-      button.textContent = users.length ? `${emoji} ${users.length}` : emoji;
+      button.textContent = emoji;
       reactionButtons.push({ button, key, emoji, label });
       button.addEventListener('click', async () => {
         try {
@@ -746,8 +790,9 @@ async function loadMessages() {
             reactionButton.classList.toggle('active', isActive);
             reactionButton.setAttribute('aria-label', `${reactionLabel}: ${usersForReaction.length}`);
             reactionButton.setAttribute('aria-pressed', String(isActive));
-            reactionButton.textContent = usersForReaction.length ? `${reactionEmoji} ${usersForReaction.length}` : reactionEmoji;
+            reactionButton.textContent = reactionEmoji;
           });
+          renderReactionSummary();
           renderedMessagesSignature = getMessagesSignature(messages);
         } catch (error) {
           alert(error.message);
@@ -755,7 +800,6 @@ async function loadMessages() {
       });
       reactions.appendChild(button);
     });
-    div.appendChild(reactions);
 
     if (isMe && item.type !== 'call') {
       const status = document.createElement('div');
@@ -1282,6 +1326,9 @@ if (searchInput && userList && messagesBox) {
       menu.classList.add('hidden');
       menu.parentElement?.querySelector('.message-actions-toggle')?.setAttribute('aria-expanded', 'false');
     });
+    if (!event.target.closest('.message')) {
+      document.querySelectorAll('.message.actions-visible').forEach((message) => message.classList.remove('actions-visible'));
+    }
   });
   etoRealnoSticker?.addEventListener('click', async () => {
     if (!currentUser || !selectedPartner) {

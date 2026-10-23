@@ -343,18 +343,26 @@ app.get('/api/users', async (req, res) => {
   await storeReady;
 
   if (supabaseEnabled) {
-    const [{ data: users, error: usersError }, { data: messages, error: messagesError }] = await Promise.all([
-      supabase.from('users').select('id, label, avatar_data'),
-      supabase.from('messages').select('from_id, to_id'),
+    const userQuery = supabase.from('users').select('id, label, avatar_data');
+    const [{ data: users, error: usersError }, messageResults] = await Promise.all([
+      userQuery,
+      !search && me
+        ? Promise.all([
+          supabase.from('messages').select('from_id, to_id').eq('from_id', me),
+          supabase.from('messages').select('from_id, to_id').eq('to_id', me),
+        ])
+        : Promise.resolve([]),
     ]);
-    if (usersError || messagesError) throw usersError || messagesError;
+    if (usersError) throw usersError;
 
     let result = (users || []).filter((user) => user.id !== me);
     if (!search && me) {
       const partnerIds = new Set();
-      (messages || []).forEach((message) => {
-        if (message.from_id === me) partnerIds.add(message.to_id);
-        if (message.to_id === me) partnerIds.add(message.from_id);
+      messageResults.forEach(({ data: messages, error }) => {
+        if (error) throw error;
+        (messages || []).forEach((message) => {
+          partnerIds.add(message.from_id === me ? message.to_id : message.from_id);
+        });
       });
       result = result.filter((user) => partnerIds.has(user.id));
     }
@@ -640,7 +648,20 @@ app.get('/api/chat/unread', async (req, res) => {
       .filter((message) => message.toId === String(userId) && !message.readAt && message.type !== 'call')
       .map((message) => ({ from_id: message.fromId }));
   }
-  res.json({ userIds: [...new Set(messages.map((message) => String(message.from_id)))] });
+  const userIds = [...new Set(messages.map((message) => String(message.from_id)).filter((id) => id !== String(userId)))];
+  let users;
+  if (supabaseEnabled && userIds.length) {
+    const { data, error } = await supabase.from('users').select('id, label, avatar_data').in('id', userIds);
+    if (error) throw error;
+    users = (data || []).map(sanitizeUser);
+  } else {
+    const allUsers = firebaseEnabled && firebaseDb
+      ? await getFirestoreUsers()
+      : memoryStore.users;
+    const unreadUserIds = new Set(userIds);
+    users = allUsers.filter((user) => unreadUserIds.has(String(user.id))).map(sanitizeUser);
+  }
+  res.json({ userIds, users });
 });
 
 app.get('/api/chat', async (req, res) => {
@@ -748,8 +769,12 @@ app.post('/api/chat', async (req, res) => {
       ]);
       invalidateFirestoreCache();
     } else {
-      ensureUser(String(fromId), String(fromId));
-      ensureUser(String(toId), String(toId));
+      if (!memoryStore.users.some((user) => user.id === String(fromId))) {
+        ensureUser(String(fromId), String(fromId));
+      }
+      if (!memoryStore.users.some((user) => user.id === String(toId))) {
+        ensureUser(String(toId), String(toId));
+      }
       memoryStore.messages.push(message);
       persistStore();
     }
