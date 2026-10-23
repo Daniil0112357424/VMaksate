@@ -48,3 +48,23 @@ create index if not exists call_signals_to_created_at_idx
 alter table public.users enable row level security;
 alter table public.messages enable row level security;
 alter table public.call_signals enable row level security;
+
+alter table public.messages replica identity full;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
+  ) then
+    execute 'alter publication supabase_realtime add table public.messages';
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'call_signals'
+  ) then
+    execute 'alter publication supabase_realtime add table public.call_signals';
+  end if;
+end
+$$;

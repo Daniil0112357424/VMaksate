@@ -42,9 +42,8 @@
               <label class="block-label" for="registerId" data-i18n="labelYourUserId">Ваш user id</label>
               <input id="registerId" name="id" data-i18n-ph="phRegisterId" placeholder="Например: user-42" required minlength="3" maxlength="20" pattern="(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{3,20}" autocomplete="username" aria-describedby="userIdRules" />
               <ul id="userIdRules" class="user-id-rules" hidden aria-live="polite">
-                <li data-user-id-rule="allowed" data-i18n="userIdRuleAllowed">Только латинские буквы и цифры</li>
+                <li data-user-id-rule="allowed" data-i18n="userIdRuleAllowed">Только латинские буквы</li>
                 <li data-user-id-rule="length" data-i18n="userIdRuleLength">От 3 до 20 символов</li>
-                <li data-user-id-rule="letters" data-i18n="userIdRuleLetters">Есть латинские буквы</li>
                 <li data-user-id-rule="digits" data-i18n="userIdRuleDigits">Есть цифры</li>
               </ul>
             </div>

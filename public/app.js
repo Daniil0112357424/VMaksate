@@ -568,7 +568,6 @@ function renderUsers(users) {
       }
 
       loadMessages();
-      startChatRefresh();
     });
 
     userList.appendChild(item);
@@ -606,12 +605,6 @@ async function searchUsers() {
   renderUsers(users);
   await refreshUnreadIndicators();
 }
-
-setInterval(() => {
-  if (searchInput && currentUser) {
-    refreshUnreadIndicators().catch((error) => console.error('Unable to refresh unread indicators:', error));
-  }
-}, 30000);
 
 let latestMessagesRequest = 0;
 let renderedMessagesPartnerId = null;
@@ -893,18 +886,6 @@ async function loadMessages() {
   if (wasAtBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
-let chatRefreshTimer = null;
-
-function startChatRefresh() {
-  if (chatRefreshTimer) return;
-
-  chatRefreshTimer = setInterval(() => {
-    if (currentUser && selectedPartner) {
-      loadMessages();
-    }
-  }, 10000);
-}
-
 let isSendingMessage = false;
 
 async function sendMessage() {
@@ -988,8 +969,8 @@ async function saveProfile(event) {
 const ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
 let callState = null;
 let incomingCall = null;
-let callSignalCursor = new Date(Date.now() - 1000).toISOString();
-let callSignalTimer = null;
+let callSignalCursor = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+let realtimeEventSource = null;
 const handledCallSignals = new Set();
 const queuedCandidates = new Map();
 
@@ -1165,6 +1146,9 @@ async function handleCallSignal(signal) {
   if (!state || state.callId !== signal.callId || state.partnerId !== signal.fromId) {
     if (incomingCall && incomingCall.callId === signal.callId && signal.type === 'candidate' && signal.payload) {
       queuedCandidates.set(signal.callId, [...(queuedCandidates.get(signal.callId) || []), signal.payload]);
+    } else if (incomingCall && incomingCall.callId === signal.callId && ['hangup', 'decline', 'busy'].includes(signal.type)) {
+      incomingCall = null;
+      hideCallOverlay();
     }
     return;
   }
@@ -1194,14 +1178,54 @@ async function pollCallSignals() {
       await handleCallSignal(signal);
     }
   } catch (error) {
-    // Signalling retries on the next short poll; a chat remains usable meanwhile.
+    console.error('Unable to check pending call signals:', error);
   }
 }
 
-function startCallSignalPolling() {
-  if (callSignalTimer) return;
-  pollCallSignals();
-  callSignalTimer = setInterval(pollCallSignals, 1200);
+function startRealtimeEvents() {
+  realtimeEventSource = new EventSource('/api/events');
+  const events = realtimeEventSource;
+  let pendingChatMessages = [];
+  let chatRefreshTimer = null;
+  events.addEventListener('chat-message', (event) => {
+    try {
+      pendingChatMessages.push(JSON.parse(event.data));
+      clearTimeout(chatRefreshTimer);
+      chatRefreshTimer = setTimeout(() => {
+        const messages = pendingChatMessages;
+        pendingChatMessages = [];
+        if (messages.some((message) => message.toId === currentUser.id)) {
+          refreshUnreadIndicators().catch((error) => console.error('Unable to refresh chat list:', error));
+        }
+        if (selectedPartner && messages.some((message) => message.fromId === selectedPartner.id || message.toId === selectedPartner.id)) {
+          loadMessages().catch((error) => console.error('Unable to refresh chat messages:', error));
+        }
+      }, 150);
+    } catch (error) {
+      console.error('Unable to process realtime chat event:', error);
+    }
+  });
+  events.addEventListener('call-signal', (event) => {
+    try {
+      const signal = JSON.parse(event.data);
+      if (signal.createdAt > callSignalCursor) callSignalCursor = signal.createdAt;
+      handleCallSignal(signal).catch((error) => console.error('Unable to process call signal:', error));
+    } catch (error) {
+      console.error('Unable to process realtime call event:', error);
+    }
+  });
+  events.onopen = () => {
+    refreshUnreadIndicators().catch((error) => console.error('Unable to refresh chat list:', error));
+    if (selectedPartner) loadMessages().catch((error) => console.error('Unable to refresh chat messages:', error));
+    pollCallSignals();
+  };
+  events.onerror = () => console.warn('Realtime connection interrupted; the browser will reconnect automatically.');
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      refreshUnreadIndicators().catch((error) => console.error('Unable to refresh chat list:', error));
+      if (selectedPartner) loadMessages().catch((error) => console.error('Unable to refresh chat messages:', error));
+    }
+  });
 }
 
 async function loadCurrentUser() {
@@ -1277,10 +1301,9 @@ async function bootChatPage() {
 
   renderCurrentUserBadge();
   updateChatHeader(null);
+  startRealtimeEvents();
   loadMessages();
   searchUsers();
-  startChatRefresh();
-  startCallSignalPolling();
 }
 
 if (mobileBackBtn) {
