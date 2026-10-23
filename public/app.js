@@ -43,6 +43,7 @@ const translations = {
     errImageTooLarge: 'Фото должно быть не больше 5 МБ.',
     callAudio: 'Аудиозвонок', callVideo: 'Видеозвонок', callMissed: 'Пропущенный {mode}', callCompleted: '{mode}', callDeclinedLog: 'Отклонённый {mode}',
     messageSent: 'Отправлено', messageDelivered: 'Доставлено', messageRead: 'Прочитано',
+    previewYou: 'Вы', previewImage: 'Фото', previewSticker: 'Стикер', previewCall: 'Звонок',
     deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
     reactionHeart: 'Сердце', reactionLike: 'Нравится', reactionPoop: 'Какашка',
     messageActionsTitle: 'Действия с сообщением',
@@ -107,6 +108,7 @@ const translations = {
     errImageTooLarge: 'Image must be 5 MB or smaller.',
     callAudio: 'Audio call', callVideo: 'Video call', callMissed: 'Missed {mode}', callCompleted: '{mode}', callDeclinedLog: 'Declined {mode}',
     messageSent: 'Sent', messageDelivered: 'Delivered', messageRead: 'Read',
+    previewYou: 'You', previewImage: 'Photo', previewSticker: 'Sticker', previewCall: 'Call',
     deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
     reactionHeart: 'Heart', reactionLike: 'Like', reactionPoop: 'Poop',
     messageActionsTitle: 'Message actions',
@@ -171,6 +173,7 @@ const translations = {
     errImageTooLarge: 'La imagen debe tener 5 MB o menos.',
     callAudio: 'Llamada de audio', callVideo: 'Videollamada', callMissed: 'Llamada perdida: {mode}', callCompleted: '{mode}', callDeclinedLog: '{mode} rechazada',
     messageSent: 'Enviado', messageDelivered: 'Entregado', messageRead: 'Leído',
+    previewYou: 'Tú', previewImage: 'Foto', previewSticker: 'Sticker', previewCall: 'Llamada',
     deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
     reactionHeart: 'Corazón', reactionLike: 'Me gusta', reactionPoop: 'Caca',
     messageActionsTitle: 'Acciones del mensaje',
@@ -275,6 +278,7 @@ let currentUser = null;
 let selectedPartner = null;
 let currentUserList = [];
 const unreadUsers = new Set();
+const lastMessageByUser = new Map();
 
 const authPage = document.getElementById('authPage');
 const registerForm = document.getElementById('registerForm');
@@ -410,6 +414,7 @@ function applyLanguage(lang) {
   if (currentUser) {
     renderCurrentUserBadge();
   }
+  if (userList) renderUsers(currentUserList);
   updateUserIdRules();
 
   if (selectedPartner) {
@@ -518,9 +523,11 @@ function renderUsers(users) {
   if (!userList) return;
 
   userList.innerHTML = '';
-  currentUserList = users;
+  currentUserList = users
+    .map((user) => ({ ...user, lastMessage: lastMessageByUser.get(user.id) || user.lastMessage || null }))
+    .sort((a, b) => Date.parse(b.lastMessage?.createdAt || 0) - Date.parse(a.lastMessage?.createdAt || 0));
 
-  users.forEach((user) => {
+  currentUserList.forEach((user) => {
     const item = document.createElement('div');
     item.className = `user-item ${selectedPartner && selectedPartner.id === user.id ? 'active' : ''}`;
 
@@ -538,6 +545,18 @@ function renderUsers(users) {
     name.textContent = user.label;
 
     info.appendChild(name);
+
+    if (user.lastMessage) {
+      const preview = document.createElement('div');
+      preview.className = 'user-item-preview';
+      const message = user.lastMessage;
+      const previewText = message.type === 'image' ? t('previewImage')
+        : message.type === 'sticker' ? t('previewSticker')
+          : message.type === 'call' ? t('previewCall')
+            : message.text || '';
+      preview.textContent = `${message.fromId === currentUser?.id ? `${t('previewYou')}: ` : ''}${previewText}`;
+      info.appendChild(preview);
+    }
 
     const meta = document.createElement('div');
     meta.className = 'user-item-meta';
@@ -584,7 +603,7 @@ async function refreshUnreadIndicators() {
   (data.users || []).forEach((user) => {
     const matchesSearch = !search || user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
     if (!knownUsers.has(user.id) && matchesSearch) {
-      currentUserList.push(user);
+      currentUserList.push({ ...user, lastMessage: lastMessageByUser.get(user.id) || null });
       knownUsers.add(user.id);
     }
   });
@@ -593,6 +612,34 @@ async function refreshUnreadIndicators() {
     if (selectedPartner?.id !== userId) unreadUsers.add(userId);
   });
   renderUsers(currentUserList);
+}
+
+function updateChatListFromMessage(message) {
+  if (!message.createdAt || message.type === 'call') return;
+  const partnerId = message.fromId === currentUser?.id ? message.toId
+    : message.toId === currentUser?.id ? message.fromId
+      : null;
+  if (!partnerId) return;
+
+  const lastMessage = {
+    id: message.messageId,
+    fromId: message.fromId,
+    text: message.text || '',
+    type: message.type || 'text',
+    createdAt: message.createdAt,
+    stickerId: message.stickerId || null,
+  };
+  const previousMessage = lastMessageByUser.get(partnerId)
+    || currentUserList.find((user) => user.id === partnerId)?.lastMessage;
+  if (previousMessage && Date.parse(previousMessage.createdAt) > Date.parse(lastMessage.createdAt)) return;
+  lastMessageByUser.set(partnerId, lastMessage);
+  const partner = currentUserList.find((user) => user.id === partnerId)
+    || (selectedPartner?.id === partnerId ? selectedPartner : null);
+  if (partner) {
+    partner.lastMessage = lastMessage;
+    if (!currentUserList.some((user) => user.id === partnerId)) currentUserList.push(partner);
+    renderUsers(currentUserList);
+  }
 }
 
 async function searchUsers() {
@@ -849,9 +896,11 @@ async function loadMessages() {
     if (isMe && item.type !== 'call') {
       const status = document.createElement('div');
       status.className = 'message-delivery-status';
-      status.textContent = item.readAt ? t('messageRead')
-        : item.deliveredAt ? t('messageDelivered')
-          : t('messageSent');
+      const statusKey = item.readAt ? 'messageRead'
+        : item.deliveredAt ? 'messageDelivered'
+          : 'messageSent';
+      status.dataset.i18n = statusKey;
+      status.textContent = t(statusKey);
       div.appendChild(status);
 
       const deleteButton = document.createElement('button');
@@ -1194,8 +1243,15 @@ function startRealtimeEvents() {
       chatRefreshTimer = setTimeout(() => {
         const messages = pendingChatMessages;
         pendingChatMessages = [];
+        const hasNewIncomingChat = messages.some((message) =>
+          message.toId === currentUser.id
+          && !currentUserList.some((user) => user.id === message.fromId)
+          && selectedPartner?.id !== message.fromId
+        );
+        messages.forEach(updateChatListFromMessage);
         if (messages.some((message) => message.toId === currentUser.id)) {
-          refreshUnreadIndicators().catch((error) => console.error('Unable to refresh chat list:', error));
+          const refreshChatList = hasNewIncomingChat ? searchUsers : refreshUnreadIndicators;
+          refreshChatList().catch((error) => console.error('Unable to refresh chat list:', error));
         }
         if (selectedPartner && messages.some((message) => message.fromId === selectedPartner.id || message.toId === selectedPartner.id)) {
           loadMessages().catch((error) => console.error('Unable to refresh chat messages:', error));
