@@ -31,10 +31,21 @@ function publishUserEvent(userId, eventName, payload) {
 }
 
 function publishChatMessage(message) {
-  if (message.type === 'call') return;
-  const payload = { fromId: message.fromId, toId: message.toId };
-  publishUserEvent(message.fromId, 'chat-message', payload);
-  publishUserEvent(message.toId, 'chat-message', payload);
+  const fromId = message.fromId || message.from_id || message.sender_id;
+  const toId = message.toId || message.to_id || message.partner_id;
+  const type = message.type || message.last_message_type || 'text';
+  if (type === 'call') return;
+  const payload = {
+    messageId: message.id || message.message_id,
+    fromId,
+    toId,
+    text: message.text || message.last_message_text || '',
+    type,
+    createdAt: message.createdAt || message.created_at || message.last_message_at,
+    stickerId: message.stickerId || message.sticker_id || null,
+  };
+  publishUserEvent(fromId, 'chat-message', payload);
+  publishUserEvent(toId, 'chat-message', payload);
 }
 
 function publishConversationUpdate(fromId, toId) {
@@ -130,14 +141,14 @@ if (supabaseEnabled) {
   supabase.channel('app-realtime-events')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: message }) => {
       if (message.type !== 'call') {
-        publishChatMessage({ fromId: message.from_id, toId: message.to_id, type: message.type });
+        publishChatMessage(message);
       }
     })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_signals' }, ({ new: signal }) => {
       publishUserEvent(signal.to_id, 'call-signal', toAppCallSignal(signal));
     })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, ({ new: message }) => {
-      publishChatMessage({ fromId: message.from_id, toId: message.to_id, type: message.type });
+      publishChatMessage(message);
     })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, ({ old: message }) => {
       publishConversationUpdate(message.from_id, message.to_id);
@@ -432,29 +443,38 @@ app.get('/api/users', async (req, res) => {
     const [{ data: users, error: usersError }, messageResults] = await Promise.all([
       userQuery,
       !search && me
-        ? Promise.all([
-          supabase.from('messages').select('from_id, to_id').eq('from_id', me),
-          supabase.from('messages').select('from_id, to_id').eq('to_id', me),
-        ])
+        ? supabase.rpc('get_chat_list', { p_user_id: me })
         : Promise.resolve([]),
     ]);
     if (usersError) throw usersError;
 
     let result = (users || []).filter((user) => user.id !== me);
     if (!search && me) {
-      const partnerIds = new Set();
-      messageResults.forEach(({ data: messages, error }) => {
-        if (error) throw error;
-        (messages || []).forEach((message) => {
-          partnerIds.add(message.from_id === me ? message.to_id : message.from_id);
-        });
-      });
-      result = result.filter((user) => partnerIds.has(user.id));
+      const { data: conversations, error: conversationsError } = messageResults;
+      if (conversationsError) throw conversationsError;
+      const conversationsByPartner = new Map((conversations || []).map((conversation) => [
+        conversation.partner_id,
+        {
+          id: conversation.message_id,
+          fromId: conversation.sender_id,
+          text: conversation.last_message_text,
+          type: conversation.last_message_type,
+          createdAt: conversation.last_message_at,
+          stickerId: conversation.sticker_id,
+        },
+      ]));
+      result = result
+        .filter((user) => conversationsByPartner.has(user.id))
+        .map((user) => ({ ...sanitizeUser(user), lastMessage: conversationsByPartner.get(user.id) }))
+        .sort((a, b) => Date.parse(b.lastMessage.createdAt) - Date.parse(a.lastMessage.createdAt));
     }
     if (search) {
       result = result.filter((user) => user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search));
     }
-    return res.json(result.map(sanitizeUser));
+    return res.json(result.map((user) => ({
+      ...sanitizeUser(user),
+      ...(user.lastMessage ? { lastMessage: user.lastMessage } : {}),
+    })));
   }
 
   const storeUsers = firebaseEnabled && firebaseDb
@@ -469,17 +489,33 @@ app.get('/api/users', async (req, res) => {
 
   if (!search) {
     if (me) {
-      const partnerIds = new Set();
+      const lastMessages = new Map();
       storeMessages.forEach((message) => {
-        if (message.fromId === me && message.toId !== me) {
-          partnerIds.add(String(message.toId));
-        }
-        if (message.toId === me && message.fromId !== me) {
-          partnerIds.add(String(message.fromId));
-        }
+        const partnerId = message.fromId === me ? String(message.toId)
+          : message.toId === me ? String(message.fromId)
+            : null;
+        if (!partnerId) return;
+        const existing = lastMessages.get(partnerId);
+        if (!existing || String(message.createdAt) > String(existing.createdAt)) lastMessages.set(partnerId, message);
       });
 
-      users = users.filter((user) => partnerIds.has(user.id));
+      users = users
+        .filter((user) => lastMessages.has(user.id))
+        .map((user) => {
+          const message = lastMessages.get(user.id);
+          return {
+            ...user,
+            lastMessage: {
+              id: message.id,
+              fromId: message.fromId,
+              text: message.text,
+              type: message.type || 'text',
+              createdAt: message.createdAt,
+              stickerId: message.stickerId || null,
+            },
+          };
+        })
+        .sort((a, b) => Date.parse(b.lastMessage.createdAt) - Date.parse(a.lastMessage.createdAt));
     }
 
     return res.json(users);

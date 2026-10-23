@@ -32,6 +32,42 @@ alter table public.messages add constraint messages_text_check
 create index if not exists messages_from_to_created_at_idx
   on public.messages (from_id, to_id, created_at);
 
+create or replace function public.get_chat_list(p_user_id text)
+returns table (
+  partner_id text,
+  message_id uuid,
+  sender_id text,
+  last_message_text text,
+  last_message_type text,
+  last_message_at timestamptz,
+  sticker_id text
+)
+language sql
+stable
+as $$
+  select distinct on (conversation.partner_id)
+    conversation.partner_id,
+    conversation.id,
+    conversation.sender_id,
+    conversation.message_text,
+    conversation.message_type,
+    conversation.message_at,
+    conversation.sticker_id
+  from (
+    select
+      case when from_id = p_user_id then to_id else from_id end as partner_id,
+      id,
+      from_id as sender_id,
+      text as message_text,
+      type as message_type,
+      created_at as message_at,
+      sticker_id
+    from public.messages
+    where from_id = p_user_id or to_id = p_user_id
+  ) as conversation
+  order by conversation.partner_id, conversation.message_at desc, conversation.id desc;
+$$;
+
 create table if not exists public.call_signals (
   id uuid primary key,
   call_id uuid not null,
