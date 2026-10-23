@@ -75,7 +75,7 @@ function initSupabase() {
 initFirebase();
 initSupabase();
 
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -289,12 +289,14 @@ function getStickerAssetUrl(stickerId) {
   return `/stickers/${normalized}.jpg`;
 }
 
-const MAX_IMAGE_DATA_LENGTH = 1_500_000;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 function validImageData(value) {
-  return typeof value === 'string'
-    && value.length <= MAX_IMAGE_DATA_LENGTH
-    && /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value);
+  if (typeof value !== 'string' || !/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
+    return false;
+  }
+  const base64Data = value.slice(value.indexOf(',') + 1);
+  return Buffer.byteLength(base64Data, 'base64') <= MAX_IMAGE_SIZE_BYTES;
 }
 
 function pruneDemoUsers() {

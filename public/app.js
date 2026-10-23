@@ -35,6 +35,7 @@ const translations = {
     callIncoming: 'Входящий звонок...', callCalling: 'Звоним...', callConnecting: 'Подключение...', callInProgress: 'В звонке', callDeclined: 'Звонок отклонён', callBusy: 'Пользователь уже разговаривает',
     callMediaError: 'Не удалось получить доступ к микрофону или камере.', callUnsupported: 'Звонки не поддерживаются этим браузером.',
     profileBtn: 'Профиль', profileTitle: 'Профиль', profileNameLabel: 'Имя', profileUserIdLabel: 'User ID', saveProfileBtn: 'Сохранить', attachPhotoTitle: 'Прикрепить фото',
+    errImageTooLarge: 'Фото должно быть не больше 5 МБ.',
     callAudio: 'Аудиозвонок', callVideo: 'Видеозвонок', callMissed: 'Пропущенный {mode}', callCompleted: '{mode}', callDeclinedLog: 'Отклонённый {mode}',
 
     // Admin page
@@ -44,6 +45,8 @@ const translations = {
     btnAdminLogin: 'Войти в админку',
     btnDeleteAll: 'Удалить всех',
     btnDeleteUser: 'Удалить',
+    confirmDeleteUser: 'Удалить аккаунт {id}? Это действие нельзя отменить.',
+    confirmDeleteAll: 'Удалить всех пользователей? Это действие нельзя отменить.',
     msgUserDeleted: 'Аккаунт {id} удалён.',
     msgAllDeleted: 'Все пользователи удалены.',
     errNoAdminAccess: 'Нет доступа к админке.',
@@ -87,6 +90,7 @@ const translations = {
     callIncoming: 'Incoming call...', callCalling: 'Calling...', callConnecting: 'Connecting...', callInProgress: 'In call', callDeclined: 'Call declined', callBusy: 'User is already in a call',
     callMediaError: 'Unable to access the microphone or camera.', callUnsupported: 'Calls are not supported by this browser.',
     profileBtn: 'Profile', profileTitle: 'Profile', profileNameLabel: 'Name', profileUserIdLabel: 'User ID', saveProfileBtn: 'Save', attachPhotoTitle: 'Attach photo',
+    errImageTooLarge: 'Image must be 5 MB or smaller.',
     callAudio: 'Audio call', callVideo: 'Video call', callMissed: 'Missed {mode}', callCompleted: '{mode}', callDeclinedLog: 'Declined {mode}',
 
     // Admin page
@@ -96,6 +100,8 @@ const translations = {
     btnAdminLogin: 'Log in as Admin',
     btnDeleteAll: 'Delete All Users',
     btnDeleteUser: 'Delete',
+    confirmDeleteUser: 'Delete account {id}? This cannot be undone.',
+    confirmDeleteAll: 'Delete all users? This cannot be undone.',
     msgUserDeleted: 'Account {id} deleted.',
     msgAllDeleted: 'All users have been deleted.',
     errNoAdminAccess: 'No admin access.',
@@ -139,6 +145,7 @@ const translations = {
     callIncoming: 'Llamada entrante...', callCalling: 'Llamando...', callConnecting: 'Conectando...', callInProgress: 'En llamada', callDeclined: 'Llamada rechazada', callBusy: 'El usuario ya está en una llamada',
     callMediaError: 'No se pudo acceder al micrófono o la cámara.', callUnsupported: 'Este navegador no admite llamadas.',
     profileBtn: 'Perfil', profileTitle: 'Perfil', profileNameLabel: 'Nombre', profileUserIdLabel: 'ID de usuario', saveProfileBtn: 'Guardar', attachPhotoTitle: 'Adjuntar foto',
+    errImageTooLarge: 'La imagen debe tener 5 MB o menos.',
     callAudio: 'Llamada de audio', callVideo: 'Videollamada', callMissed: 'Llamada perdida: {mode}', callCompleted: '{mode}', callDeclinedLog: '{mode} rechazada',
 
     // Admin page
@@ -148,6 +155,8 @@ const translations = {
     btnAdminLogin: 'Entrar como Admin',
     btnDeleteAll: 'Eliminar a todos',
     btnDeleteUser: 'Eliminar',
+    confirmDeleteUser: '¿Eliminar la cuenta {id}? Esta acción no se puede deshacer.',
+    confirmDeleteAll: '¿Eliminar todos los usuarios? Esta acción no se puede deshacer.',
     msgUserDeleted: 'Cuenta {id} eliminada.',
     msgAllDeleted: 'Todos los usuarios han sido eliminados.',
     errNoAdminAccess: 'Sin acceso de administrador.',
@@ -256,6 +265,10 @@ const acceptCallBtn = document.getElementById('acceptCallBtn');
 const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
 const imageInput = document.getElementById('imageInput');
+const attachmentPreview = document.getElementById('attachmentPreview');
+const attachmentPreviewImage = document.getElementById('attachmentPreviewImage');
+const attachmentPreviewName = document.getElementById('attachmentPreviewName');
+const removeAttachmentBtn = document.getElementById('removeAttachmentBtn');
 const stickerBtn = document.getElementById('stickerBtn');
 const stickerMenu = document.getElementById('stickerMenu');
 const etoRealnoSticker = document.getElementById('etoRealnoSticker');
@@ -702,6 +715,7 @@ async function sendMessage() {
     messageInput.value = '';
     pendingMessageImage = null;
     if (imageInput) imageInput.value = '';
+    attachmentPreview?.classList.add('hidden');
     await loadMessages();
   } catch (error) {
     alert(error.message);
@@ -713,7 +727,7 @@ async function sendMessage() {
 
 function readImage(file) {
   return new Promise((resolve, reject) => {
-    if (!file || file.size > 1_100_000) return reject(new Error('Фото должно быть меньше 1 МБ.'));
+    if (!file || file.size > 5 * 1024 * 1024) return reject(new Error(t('errImageTooLarge')));
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error('Не удалось прочитать фото.'));
@@ -999,6 +1013,7 @@ async function loadAdminUsers() {
     card.innerHTML = `<div><strong>${escapeHtml(user.label)}</strong><br /><span>${escapeHtml(user.id)}</span></div><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button>`;
 
     card.querySelector('.admin-delete-btn').addEventListener('click', async () => {
+      if (!window.confirm(t('confirmDeleteUser', { id: user.id }))) return;
       const deleteResponse = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}`, { method: 'DELETE' });
       const result = await deleteResponse.json();
       if (!deleteResponse.ok) {
@@ -1095,6 +1110,7 @@ if (adminPage) {
   });
 
   deleteAllUsersBtn?.addEventListener('click', async () => {
+    if (!window.confirm(t('confirmDeleteAll'))) return;
     const response = await fetch('/api/admin/users', { method: 'DELETE' });
     const data = await response.json();
     if (!response.ok) {
@@ -1174,8 +1190,23 @@ if (searchInput && userList && messagesBox) {
   declineCallBtn?.addEventListener('click', declineIncomingCall);
   endCallBtn?.addEventListener('click', () => endCurrentCall());
   imageInput?.addEventListener('change', async () => {
-    try { pendingMessageImage = await readImage(imageInput.files[0]); }
-    catch (error) { imageInput.value = ''; alert(error.message); }
+    try {
+      const file = imageInput.files[0];
+      pendingMessageImage = await readImage(file);
+      attachmentPreviewImage.src = pendingMessageImage;
+      attachmentPreviewName.textContent = file.name;
+      attachmentPreview?.classList.remove('hidden');
+    } catch (error) {
+      pendingMessageImage = null;
+      imageInput.value = '';
+      attachmentPreview?.classList.add('hidden');
+      alert(error.message);
+    }
+  });
+  removeAttachmentBtn?.addEventListener('click', () => {
+    pendingMessageImage = null;
+    if (imageInput) imageInput.value = '';
+    attachmentPreview?.classList.add('hidden');
   });
   profileBtn?.addEventListener('click', openProfile);
   closeProfileBtn?.addEventListener('click', closeProfile);
