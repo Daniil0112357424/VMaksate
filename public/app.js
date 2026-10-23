@@ -40,6 +40,7 @@ const translations = {
     messageSent: 'Отправлено', messageDelivered: 'Доставлено', messageRead: 'Прочитано',
     deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
     reactionHeart: 'Сердце', reactionLike: 'Нравится', reactionPoop: 'Какашка',
+    messageActionsTitle: 'Действия с сообщением',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -98,6 +99,7 @@ const translations = {
     messageSent: 'Sent', messageDelivered: 'Delivered', messageRead: 'Read',
     deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
     reactionHeart: 'Heart', reactionLike: 'Like', reactionPoop: 'Poop',
+    messageActionsTitle: 'Message actions',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -156,6 +158,7 @@ const translations = {
     messageSent: 'Enviado', messageDelivered: 'Entregado', messageRead: 'Leído',
     deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
     reactionHeart: 'Corazón', reactionLike: 'Me gusta', reactionPoop: 'Caca',
+    messageActionsTitle: 'Acciones del mensaje',
 
     // Admin page
     adminTitle: 'Panel de Admin',
@@ -522,23 +525,13 @@ function renderUsers(users) {
 
 async function refreshUnreadIndicators() {
   if (!currentUser || currentUserList.length === 0) return;
-
-  for (const user of currentUserList) {
-    if (user.id === currentUser.id) continue;
-
-    const response = await fetch(`/api/chat?me=${encodeURIComponent(currentUser.id)}&other=${encodeURIComponent(user.id)}`);
-    const data = await response.json();
-    const messages = data.messages || [];
-
-    const hasUnreadIncoming = messages.some((message) =>
-      message.fromId === user.id && message.toId === currentUser.id && !message.readAt
-    );
-    if (hasUnreadIncoming && selectedPartner?.id !== user.id) {
-      unreadUsers.add(user.id);
-    } else {
-      unreadUsers.delete(user.id);
-    }
-  }
+  const response = await fetch('/api/chat/unread');
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Unable to refresh unread messages.');
+  unreadUsers.clear();
+  (data.userIds || []).forEach((userId) => {
+    if (selectedPartner?.id !== userId) unreadUsers.add(userId);
+  });
   renderUsers(currentUserList);
 }
 
@@ -553,12 +546,23 @@ async function searchUsers() {
 }
 
 setInterval(() => {
-  if (searchInput) {
-    searchUsers();
+  if (searchInput && currentUser) {
+    refreshUnreadIndicators().catch((error) => console.error('Unable to refresh unread indicators:', error));
   }
-}, 2000);
+}, 30000);
 
 let latestMessagesRequest = 0;
+let renderedMessagesPartnerId = null;
+let renderedMessagesSignature = '';
+
+function getMessagesSignature(messages) {
+  return JSON.stringify(messages.map((message) => [
+    message.id,
+    message.deliveredAt,
+    message.readAt,
+    message.reactions,
+  ]));
+}
 
 async function loadMessages() {
   if (!currentUser || !messagesBox) return;
@@ -581,37 +585,42 @@ async function loadMessages() {
   const requestNumber = ++latestMessagesRequest;
   const response = await fetch(`/api/chat?me=${encodeURIComponent(currentUser.id)}&other=${encodeURIComponent(partnerId)}`);
   const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Unable to load chat.');
 
   // Requests from the interval may finish out of order. Do not let an old
   // response replace a newer chat or the newly selected conversation.
   if (requestNumber !== latestMessagesRequest || !selectedPartner || selectedPartner.id !== partnerId) return;
 
-  messagesBox.innerHTML = '';
-
   const messages = data.messages || [];
 
-  try {
-    const readResponse = await fetch('/api/chat/read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ me: currentUser.id, other: partnerId }),
-    });
-    if (readResponse.ok) {
+  const hasUnreadIncoming = messages.some((message) =>
+    message.fromId === partnerId && message.toId === currentUser.id && !message.readAt
+  );
+  if (hasUnreadIncoming) {
+    try {
+      const readResponse = await fetch('/api/chat/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ me: currentUser.id, other: partnerId }),
+      });
+      if (!readResponse.ok) throw new Error('Unable to mark chat messages as read.');
       const { readAt } = await readResponse.json();
       messages.forEach((message) => {
         if (message.fromId === partnerId && message.toId === currentUser.id && !message.readAt) {
           message.readAt = readAt;
         }
       });
-      unreadUsers.delete(partnerId);
-    } else {
-      throw new Error('Unable to mark chat messages as read.');
+    } catch (error) {
+      console.error('Unable to mark chat messages as read:', error);
     }
-  } catch (error) {
-    console.error('Unable to mark chat messages as read:', error);
   }
+  unreadUsers.delete(partnerId);
 
   if (requestNumber !== latestMessagesRequest || !selectedPartner || selectedPartner.id !== partnerId) return;
+  const signature = getMessagesSignature(messages);
+  if (renderedMessagesPartnerId === partnerId && renderedMessagesSignature === signature) return;
+  const wasAtBottom = messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight < 40;
+  messagesBox.innerHTML = '';
 
   if (messages.length === 0) {
     messagesBox.innerHTML = `
@@ -625,6 +634,8 @@ async function loadMessages() {
         <p>${escapeHtml(t('phMessage'))}</p>
       </div>
     `;
+    renderedMessagesPartnerId = partnerId;
+    renderedMessagesSignature = signature;
     return;
   }
 
@@ -687,8 +698,27 @@ async function loadMessages() {
       { key: 'like', emoji: '👍', label: t('reactionLike') },
       { key: 'poop', emoji: '💩', label: t('reactionPoop') },
     ];
+    const actions = document.createElement('div');
+    actions.className = 'message-actions';
+    const actionsToggle = document.createElement('button');
+    actionsToggle.type = 'button';
+    actionsToggle.className = 'message-actions-toggle';
+    actionsToggle.setAttribute('aria-label', t('messageActionsTitle'));
+    actionsToggle.setAttribute('title', t('messageActionsTitle'));
+    actionsToggle.setAttribute('aria-expanded', 'false');
+    actionsToggle.textContent = '⌄';
+    const actionsMenu = document.createElement('div');
+    actionsMenu.className = 'message-actions-menu hidden';
+    actionsToggle.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const open = actionsMenu.classList.toggle('hidden') === false;
+      actionsToggle.setAttribute('aria-expanded', String(open));
+    });
+    actionsMenu.addEventListener('click', (event) => event.stopPropagation());
+
     const reactions = document.createElement('div');
     reactions.className = 'message-reactions';
+    const reactionButtons = [];
     reactionOptions.forEach(({ key, emoji, label }) => {
       const users = Array.isArray(reactionUsers[key]) ? reactionUsers[key] : [];
       const button = document.createElement('button');
@@ -696,8 +726,10 @@ async function loadMessages() {
       button.className = 'message-reaction';
       button.classList.toggle('active', users.includes(currentUser.id));
       button.setAttribute('aria-label', `${label}: ${users.length}`);
+      button.setAttribute('title', label);
       button.setAttribute('aria-pressed', String(users.includes(currentUser.id)));
       button.textContent = users.length ? `${emoji} ${users.length}` : emoji;
+      reactionButtons.push({ button, key, emoji, label });
       button.addEventListener('click', async () => {
         try {
           const response = await fetch('/api/chat/reactions', {
@@ -707,7 +739,16 @@ async function loadMessages() {
           });
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'Unable to update reaction.');
-          await loadMessages();
+          item.reactions = result.reactions;
+          reactionButtons.forEach(({ button: reactionButton, key: reactionKey, emoji: reactionEmoji, label: reactionLabel }) => {
+            const usersForReaction = Array.isArray(item.reactions[reactionKey]) ? item.reactions[reactionKey] : [];
+            const isActive = usersForReaction.includes(currentUser.id);
+            reactionButton.classList.toggle('active', isActive);
+            reactionButton.setAttribute('aria-label', `${reactionLabel}: ${usersForReaction.length}`);
+            reactionButton.setAttribute('aria-pressed', String(isActive));
+            reactionButton.textContent = usersForReaction.length ? `${reactionEmoji} ${usersForReaction.length}` : reactionEmoji;
+          });
+          renderedMessagesSignature = getMessagesSignature(messages);
         } catch (error) {
           alert(error.message);
         }
@@ -734,20 +775,26 @@ async function loadMessages() {
           const response = await fetch(`/api/chat/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'Unable to delete message.');
+          renderedMessagesSignature = '';
           await loadMessages();
         } catch (error) {
           alert(error.message);
         }
       });
-      div.appendChild(deleteButton);
+      actionsMenu.appendChild(deleteButton);
     }
 
+    actionsMenu.appendChild(reactions);
+    actions.append(actionsToggle, actionsMenu);
+    div.appendChild(actions);
     messagesBox.appendChild(div);
   });
 
+  renderedMessagesPartnerId = partnerId;
+  renderedMessagesSignature = signature;
   unreadUsers.delete(selectedPartner.id);
 
-  messagesBox.scrollTop = messagesBox.scrollHeight;
+  if (wasAtBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
 }
 
 let chatRefreshTimer = null;
@@ -759,7 +806,7 @@ function startChatRefresh() {
     if (currentUser && selectedPartner) {
       loadMessages();
     }
-  }, 2000);
+  }, 10000);
 }
 
 let isSendingMessage = false;
@@ -1227,10 +1274,14 @@ if (searchInput && userList && messagesBox) {
     toggleStickerMenu();
   });
   document.addEventListener('click', (event) => {
-    if (!stickerMenu || !stickerBtn) return;
-    if (!stickerMenu.contains(event.target) && !stickerBtn.contains(event.target)) {
+    if (stickerMenu && stickerBtn && !stickerMenu.contains(event.target) && !stickerBtn.contains(event.target)) {
       stickerMenu.classList.add('hidden');
     }
+    document.querySelectorAll('.message-actions-menu:not(.hidden)').forEach((menu) => {
+      if (menu.contains(event.target)) return;
+      menu.classList.add('hidden');
+      menu.parentElement?.querySelector('.message-actions-toggle')?.setAttribute('aria-expanded', 'false');
+    });
   });
   etoRealnoSticker?.addEventListener('click', async () => {
     if (!currentUser || !selectedPartner) {

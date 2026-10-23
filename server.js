@@ -619,6 +619,30 @@ app.delete('/api/users', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/api/chat/unread', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  await storeReady;
+
+  let messages;
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages').select('from_id')
+      .eq('to_id', String(userId)).is('read_at', null).neq('type', 'call');
+    if (error) throw error;
+    messages = data || [];
+  } else if (firebaseEnabled && firebaseDb) {
+    const snapshot = await firebaseDb.collection('messages').where('toId', '==', String(userId)).get();
+    messages = snapshot.docs.map((doc) => doc.data())
+      .filter((message) => !message.readAt && message.type !== 'call')
+      .map((message) => ({ from_id: message.fromId }));
+  } else {
+    messages = memoryStore.messages
+      .filter((message) => message.toId === String(userId) && !message.readAt && message.type !== 'call')
+      .map((message) => ({ from_id: message.fromId }));
+  }
+  res.json({ userIds: [...new Set(messages.map((message) => String(message.from_id)))] });
+});
+
 app.get('/api/chat', async (req, res) => {
   const me = String(req.query.me || '');
   const other = String(req.query.other || '');

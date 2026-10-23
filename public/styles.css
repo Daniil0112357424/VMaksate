@@ -788,16 +788,26 @@ button:active {
   opacity: 0.7;
 }
 
+.message-actions { position: absolute; top: 4px; right: 4px; z-index: 2; opacity: 0; transition: opacity 0.15s ease; }
+.message:hover .message-actions,
+.message:focus-within .message-actions { opacity: 1; }
+.message-actions-toggle { width: 28px; height: 28px; padding: 0; border: 1px solid var(--border-color); border-radius: 50%; background: rgba(11, 15, 25, 0.78); color: var(--text-primary); font-size: 17px; line-height: 1; }
+.message-actions-menu { position: absolute; top: 32px; right: 0; min-width: 118px; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-card); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
+.message-actions-menu.hidden { display: none; }
 .message-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .message-reaction { min-width: 30px; padding: 3px 7px; border: 1px solid var(--border-color); border-radius: var(--radius-full); background: rgba(15, 23, 42, 0.35); color: var(--text-primary); font-size: 12px; }
 .message-reaction.active { border-color: #93c5fd; background: rgba(147, 197, 253, 0.2); }
 .message-delivery-status { align-self: flex-end; color: rgba(255, 255, 255, 0.72); font-size: 10px; }
-.message-delete-btn { align-self: flex-end; margin-top: 3px; padding: 2px 4px; background: transparent; color: rgba(255, 255, 255, 0.68); font-size: 10px; }
+.message-delete-btn { display: flex; width: 100%; justify-content: flex-start; padding: 7px 8px; border-radius: 6px; background: transparent; color: #fda4af; font-size: 12px; }
 .message-delete-btn:hover { color: #fff; text-decoration: underline; }
 
 .message-image { display: block; max-width: min(360px, 100%); max-height: 420px; border-radius: var(--radius-sm); object-fit: cover; margin-top: 6px; }
 .message-sticker { display: block; width: min(180px, 56vw); max-height: 220px; border-radius: 14px; object-fit: contain; margin-top: 6px; }
 .call-message { align-self: center; max-width: 100%; padding: 7px 12px; background: transparent; color: var(--text-muted); font-size: 12px; }
+
+@media (hover: none) {
+  .message-actions { opacity: 1; }
+}
 
 .attachment-preview {
   display: flex;
