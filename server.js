@@ -21,6 +21,27 @@ let firebaseDb = null;
 let firebaseEnabled = false;
 let supabase = null;
 let supabaseEnabled = false;
+const userEventClients = new Map();
+
+function publishUserEvent(userId, eventName, payload) {
+  const clients = userEventClients.get(String(userId));
+  if (!clients) return;
+  const event = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  clients.forEach((client) => client.write(event));
+}
+
+function publishChatMessage(message) {
+  if (message.type === 'call') return;
+  const payload = { fromId: message.fromId, toId: message.toId };
+  publishUserEvent(message.fromId, 'chat-message', payload);
+  publishUserEvent(message.toId, 'chat-message', payload);
+}
+
+function publishConversationUpdate(fromId, toId) {
+  const payload = { fromId: String(fromId), toId: String(toId) };
+  publishUserEvent(payload.fromId, 'chat-message', payload);
+  publishUserEvent(payload.toId, 'chat-message', payload);
+}
 
 function initFirebase() {
   try {
@@ -78,6 +99,70 @@ initSupabase();
 app.use(express.json({ limit: '8mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/api/events', (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  if (!userId) return res.status(401).end();
+
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders();
+  res.write(': connected\n\n');
+
+  const key = String(userId);
+  if (!userEventClients.has(key)) userEventClients.set(key, new Set());
+  userEventClients.get(key).add(res);
+  const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 25000);
+
+  res.on('close', () => {
+    clearInterval(heartbeat);
+    const clients = userEventClients.get(key);
+    clients?.delete(res);
+    if (clients?.size === 0) userEventClients.delete(key);
+  });
+});
+
+if (supabaseEnabled) {
+  supabase.channel('app-realtime-events')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: message }) => {
+      if (message.type !== 'call') {
+        publishChatMessage({ fromId: message.from_id, toId: message.to_id, type: message.type });
+      }
+    })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_signals' }, ({ new: signal }) => {
+      publishUserEvent(signal.to_id, 'call-signal', toAppCallSignal(signal));
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, ({ new: message }) => {
+      publishChatMessage({ fromId: message.from_id, toId: message.to_id, type: message.type });
+    })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, ({ old: message }) => {
+      publishConversationUpdate(message.from_id, message.to_id);
+    })
+    .subscribe((status, error) => {
+      if (status === 'SUBSCRIBED') console.log('Supabase Realtime connected.');
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.error('Supabase Realtime subscription failed:', error || status);
+      }
+    });
+} else if (firebaseEnabled && firebaseDb) {
+  firebaseDb.collection('messages').onSnapshot((snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === 'added') publishChatMessage(change.doc.data());
+    });
+  }, (error) => console.error('Firestore message listener failed:', error.message));
+  firebaseDb.collection('callSignals').onSnapshot((snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === 'added') {
+        const signal = change.doc.data();
+        publishUserEvent(signal.toId, 'call-signal', signal);
+      }
+    });
+  }, (error) => console.error('Firestore call listener failed:', error.message));
+}
 
 function ensureStoreFile() {
   if (!fs.existsSync(dataDir)) {
@@ -693,6 +778,7 @@ app.get('/api/chat', async (req, res) => {
       const { error } = await supabase.from('messages').update({ delivered_at: deliveredAt })
         .eq('from_id', other).eq('to_id', me).is('delivered_at', null);
       if (error) throw error;
+      publishConversationUpdate(other, me);
     }
     const messages = [...(sent || []), ...incoming.map((message) => ({
       ...message,
@@ -723,6 +809,7 @@ app.get('/api/chat', async (req, res) => {
   } else if (deliveredAt) {
     pendingDelivery.forEach((message) => { message.deliveredAt = deliveredAt; });
     persistStore();
+    publishConversationUpdate(other, me);
   }
   const messages = conversationMessages
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
@@ -782,6 +869,7 @@ app.post('/api/chat', async (req, res) => {
       persistStore();
     }
 
+    publishChatMessage(message);
     res.json({ ok: true, message });
   } catch (error) {
     console.error('Failed to send chat message:', error);
@@ -795,17 +883,20 @@ app.delete('/api/chat/:id', async (req, res) => {
   if (!userId || !messageId) return res.status(400).json({ error: 'Invalid message.' });
 
   await storeReady;
+  let conversation = null;
   if (supabaseEnabled) {
     const { data, error } = await supabase.from('messages').delete()
-      .eq('id', messageId).eq('from_id', String(userId)).select('id').maybeSingle();
+      .eq('id', messageId).eq('from_id', String(userId)).select('from_id, to_id').maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: 'Message not found or cannot be deleted.' });
+    conversation = { fromId: data.from_id, toId: data.to_id };
   } else if (firebaseEnabled && firebaseDb) {
     const ref = firebaseDb.collection('messages').doc(messageId);
     const snapshot = await ref.get();
     if (!snapshot.exists || snapshot.data().fromId !== String(userId)) {
       return res.status(404).json({ error: 'Message not found or cannot be deleted.' });
     }
+    conversation = { fromId: snapshot.data().fromId, toId: snapshot.data().toId };
     await ref.delete();
     invalidateFirestoreCache();
   } else {
@@ -813,9 +904,11 @@ app.delete('/api/chat/:id', async (req, res) => {
       message.id === messageId && message.fromId === String(userId)
     );
     if (index < 0) return res.status(404).json({ error: 'Message not found or cannot be deleted.' });
-    memoryStore.messages.splice(index, 1);
+    const [message] = memoryStore.messages.splice(index, 1);
+    conversation = { fromId: message.fromId, toId: message.toId };
     persistStore();
   }
+  publishConversationUpdate(conversation.fromId, conversation.toId);
   res.json({ ok: true, deletedMessageId: messageId });
 });
 
@@ -863,6 +956,7 @@ app.post('/api/chat/read', async (req, res) => {
     });
     persistStore();
   }
+  publishUserEvent(other, 'chat-message', { fromId: other, toId: me });
   res.json({ ok: true, readAt });
 });
 
@@ -900,6 +994,7 @@ app.post('/api/chat/reactions', async (req, res) => {
     message.reactions = reactions;
     persistStore();
   }
+  publishConversationUpdate(message.from_id || message.fromId, message.to_id || message.toId);
   res.json({ ok: true, reactions });
 });
 
@@ -1007,6 +1102,7 @@ app.post('/api/calls/signal', async (req, res) => {
     persistStore();
   }
 
+  publishUserEvent(signal.toId, 'call-signal', signal);
   res.json({ ok: true });
 });
 
