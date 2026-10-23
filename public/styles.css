@@ -265,6 +265,19 @@ button:active {
   margin-bottom: 14px;
 }
 
+.user-id-rules {
+  display: grid;
+  gap: 3px;
+  margin: 7px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.user-id-rules[hidden] { display: none; }
+.user-id-rules li.is-valid { color: #4ade80; }
+.user-id-rules li.is-invalid { color: #f87171; }
+
 .block-label {
   display: block;
   margin: 0 0 6px;

@@ -413,6 +413,9 @@ app.post('/api/auth/register', async (req, res) => {
   if (!id || !label || !password) {
     return res.status(400).json({ error: 'Need id, label and password.' });
   }
+  if (typeof id !== 'string' || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{3,20}$/.test(id)) {
+    return res.status(400).json({ error: 'Invalid user ID. Use 3-20 Latin letters and digits, including at least one of each.' });
+  }
 
   await storeReady;
   if (supabaseEnabled) {
