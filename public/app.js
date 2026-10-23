@@ -37,6 +37,9 @@ const translations = {
     profileBtn: 'Профиль', profileTitle: 'Профиль', profileNameLabel: 'Имя', profileUserIdLabel: 'User ID', saveProfileBtn: 'Сохранить', attachPhotoTitle: 'Прикрепить фото',
     errImageTooLarge: 'Фото должно быть не больше 5 МБ.',
     callAudio: 'Аудиозвонок', callVideo: 'Видеозвонок', callMissed: 'Пропущенный {mode}', callCompleted: '{mode}', callDeclinedLog: 'Отклонённый {mode}',
+    messageSent: 'Отправлено', messageDelivered: 'Доставлено', messageRead: 'Прочитано',
+    deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
+    reactionHeart: 'Сердце', reactionLike: 'Нравится', reactionPoop: 'Какашка',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -92,6 +95,9 @@ const translations = {
     profileBtn: 'Profile', profileTitle: 'Profile', profileNameLabel: 'Name', profileUserIdLabel: 'User ID', saveProfileBtn: 'Save', attachPhotoTitle: 'Attach photo',
     errImageTooLarge: 'Image must be 5 MB or smaller.',
     callAudio: 'Audio call', callVideo: 'Video call', callMissed: 'Missed {mode}', callCompleted: '{mode}', callDeclinedLog: 'Declined {mode}',
+    messageSent: 'Sent', messageDelivered: 'Delivered', messageRead: 'Read',
+    deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
+    reactionHeart: 'Heart', reactionLike: 'Like', reactionPoop: 'Poop',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -147,6 +153,9 @@ const translations = {
     profileBtn: 'Perfil', profileTitle: 'Perfil', profileNameLabel: 'Nombre', profileUserIdLabel: 'ID de usuario', saveProfileBtn: 'Guardar', attachPhotoTitle: 'Adjuntar foto',
     errImageTooLarge: 'La imagen debe tener 5 MB o menos.',
     callAudio: 'Llamada de audio', callVideo: 'Videollamada', callMissed: 'Llamada perdida: {mode}', callCompleted: '{mode}', callDeclinedLog: '{mode} rechazada',
+    messageSent: 'Enviado', messageDelivered: 'Entregado', messageRead: 'Leído',
+    deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
+    reactionHeart: 'Corazón', reactionLike: 'Me gusta', reactionPoop: 'Caca',
 
     // Admin page
     adminTitle: 'Panel de Admin',
@@ -221,7 +230,6 @@ let currentUser = null;
 let selectedPartner = null;
 let currentUserList = [];
 const unreadUsers = new Set();
-const lastSeenMessageIds = new Map();
 
 const authPage = document.getElementById('authPage');
 const registerForm = document.getElementById('registerForm');
@@ -522,25 +530,16 @@ async function refreshUnreadIndicators() {
     const data = await response.json();
     const messages = data.messages || [];
 
-    if (!messages.length) {
-      lastSeenMessageIds.delete(user.id);
-      continue;
-    }
-
-    const lastMessage = messages[messages.length - 1];
-    const previousId = lastSeenMessageIds.get(user.id);
-    const isIncoming = lastMessage.fromId === user.id && lastMessage.toId === currentUser.id;
-
-    if (isIncoming && previousId !== lastMessage.id) {
+    const hasUnreadIncoming = messages.some((message) =>
+      message.fromId === user.id && message.toId === currentUser.id && !message.readAt
+    );
+    if (hasUnreadIncoming && selectedPartner?.id !== user.id) {
       unreadUsers.add(user.id);
-      lastSeenMessageIds.set(user.id, lastMessage.id);
-    }
-
-    if (selectedPartner && selectedPartner.id === user.id) {
+    } else {
       unreadUsers.delete(user.id);
-      lastSeenMessageIds.set(user.id, lastMessage.id);
     }
   }
+  renderUsers(currentUserList);
 }
 
 async function searchUsers() {
@@ -590,6 +589,29 @@ async function loadMessages() {
   messagesBox.innerHTML = '';
 
   const messages = data.messages || [];
+
+  try {
+    const readResponse = await fetch('/api/chat/read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ me: currentUser.id, other: partnerId }),
+    });
+    if (readResponse.ok) {
+      const { readAt } = await readResponse.json();
+      messages.forEach((message) => {
+        if (message.fromId === partnerId && message.toId === currentUser.id && !message.readAt) {
+          message.readAt = readAt;
+        }
+      });
+      unreadUsers.delete(partnerId);
+    } else {
+      throw new Error('Unable to mark chat messages as read.');
+    }
+  } catch (error) {
+    console.error('Unable to mark chat messages as read:', error);
+  }
+
+  if (requestNumber !== latestMessagesRequest || !selectedPartner || selectedPartner.id !== partnerId) return;
 
   if (messages.length === 0) {
     messagesBox.innerHTML = `
@@ -659,14 +681,71 @@ async function loadMessages() {
       div.appendChild(time);
     }
 
+    const reactionUsers = item.reactions || {};
+    const reactionOptions = [
+      { key: 'heart', emoji: '❤️', label: t('reactionHeart') },
+      { key: 'like', emoji: '👍', label: t('reactionLike') },
+      { key: 'poop', emoji: '💩', label: t('reactionPoop') },
+    ];
+    const reactions = document.createElement('div');
+    reactions.className = 'message-reactions';
+    reactionOptions.forEach(({ key, emoji, label }) => {
+      const users = Array.isArray(reactionUsers[key]) ? reactionUsers[key] : [];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'message-reaction';
+      button.classList.toggle('active', users.includes(currentUser.id));
+      button.setAttribute('aria-label', `${label}: ${users.length}`);
+      button.setAttribute('aria-pressed', String(users.includes(currentUser.id)));
+      button.textContent = users.length ? `${emoji} ${users.length}` : emoji;
+      button.addEventListener('click', async () => {
+        try {
+          const response = await fetch('/api/chat/reactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messageId: item.id, reaction: key }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Unable to update reaction.');
+          await loadMessages();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+      reactions.appendChild(button);
+    });
+    div.appendChild(reactions);
+
+    if (isMe && item.type !== 'call') {
+      const status = document.createElement('div');
+      status.className = 'message-delivery-status';
+      status.textContent = item.readAt ? t('messageRead')
+        : item.deliveredAt ? t('messageDelivered')
+          : t('messageSent');
+      div.appendChild(status);
+
+      const deleteButton = document.createElement('button');
+      deleteButton.type = 'button';
+      deleteButton.className = 'message-delete-btn';
+      deleteButton.textContent = t('deleteMessage');
+      deleteButton.addEventListener('click', async () => {
+        if (!window.confirm(t('confirmDeleteMessage'))) return;
+        try {
+          const response = await fetch(`/api/chat/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Unable to delete message.');
+          await loadMessages();
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+      div.appendChild(deleteButton);
+    }
+
     messagesBox.appendChild(div);
   });
 
-  const lastMessage = messages[messages.length - 1];
-  if (lastMessage) {
-    lastSeenMessageIds.set(selectedPartner.id, lastMessage.id);
-    unreadUsers.delete(selectedPartner.id);
-  }
+  unreadUsers.delete(selectedPartner.id);
 
   messagesBox.scrollTop = messagesBox.scrollHeight;
 }

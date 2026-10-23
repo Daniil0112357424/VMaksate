@@ -252,6 +252,7 @@ function toAppMessage(message) {
     callStatus: message.call_status || null,
     stickerId,
     reactions: message.reactions || {},
+    deliveredAt: message.delivered_at || message.deliveredAt || null,
     readAt: message.read_at || null,
     createdAt: String(message.created_at),
   };
@@ -270,6 +271,7 @@ function toDatabaseMessage(message) {
     call_status: message.callStatus || null,
     sticker_id: message.stickerId || null,
     reactions: message.reactions || {},
+    delivered_at: message.deliveredAt || null,
     read_at: message.readAt || null,
     created_at: message.createdAt,
   };
@@ -624,16 +626,30 @@ app.get('/api/chat', async (req, res) => {
   if (!me || !other) {
     return res.status(400).json({ error: 'Need both ids.' });
   }
+  if (req.cookies?.sessionUserId !== me) {
+    return res.status(403).json({ error: 'Chat access denied.' });
+  }
 
   await storeReady;
 
   if (supabaseEnabled) {
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, read_at, created_at').eq('from_id', me).eq('to_id', other),
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, read_at, created_at').eq('from_id', other).eq('to_id', me),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, created_at').eq('from_id', me).eq('to_id', other),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, created_at').eq('from_id', other).eq('to_id', me),
     ]);
     if (sentError || receivedError) throw sentError || receivedError;
-    const messages = [...(sent || []), ...(received || [])]
+    const incoming = received || [];
+    const pendingDelivery = incoming.some((message) => !message.delivered_at);
+    const deliveredAt = pendingDelivery ? new Date().toISOString() : null;
+    if (pendingDelivery) {
+      const { error } = await supabase.from('messages').update({ delivered_at: deliveredAt })
+        .eq('from_id', other).eq('to_id', me).is('delivered_at', null);
+      if (error) throw error;
+    }
+    const messages = [...(sent || []), ...incoming.map((message) => ({
+      ...message,
+      delivered_at: message.delivered_at || deliveredAt,
+    }))]
       .map(toAppMessage)
       .sort((first, second) => first.createdAt.localeCompare(second.createdAt));
     return res.json({ chatKey: [me, other].sort().join('::'), messages });
@@ -644,10 +660,23 @@ app.get('/api/chat', async (req, res) => {
   const allMessages = firebaseEnabled && firebaseDb
     ? await getFirestoreMessages()
     : memoryStore.messages;
-  const messages = allMessages
-    .filter((item) => {
-      return (item.fromId === me && item.toId === other) || (item.fromId === other && item.toId === me);
-    })
+  const conversationMessages = allMessages.filter((item) =>
+    (item.fromId === me && item.toId === other) || (item.fromId === other && item.toId === me)
+  );
+  const incoming = conversationMessages.filter((item) => item.fromId === other && item.toId === me);
+  const pendingDelivery = incoming.filter((item) => !item.deliveredAt);
+  const deliveredAt = pendingDelivery.length ? new Date().toISOString() : null;
+  if (deliveredAt && firebaseEnabled && firebaseDb) {
+    await Promise.all(pendingDelivery.map((message) =>
+      firebaseDb.collection('messages').doc(String(message.id)).update({ deliveredAt })
+    ));
+    pendingDelivery.forEach((message) => { message.deliveredAt = deliveredAt; });
+    invalidateFirestoreCache();
+  } else if (deliveredAt) {
+    pendingDelivery.forEach((message) => { message.deliveredAt = deliveredAt; });
+    persistStore();
+  }
+  const messages = conversationMessages
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
   res.json({ chatKey: [me, other].sort().join('::'), messages });
@@ -659,6 +688,9 @@ app.post('/api/chat', async (req, res) => {
 
     if (!fromId || !toId || (!String(text).trim() && !imageData && !stickerId) || String(text).length > 4000 || (imageData && !validImageData(imageData)) || (stickerId && stickerId !== 'eto-realno')) {
       return res.status(400).json({ error: 'Invalid message.' });
+    }
+    if (req.cookies?.sessionUserId !== String(fromId)) {
+      return res.status(403).json({ error: 'Chat access denied.' });
     }
 
     await storeReady;
@@ -679,7 +711,7 @@ app.post('/api/chat', async (req, res) => {
     if (supabaseEnabled) {
       const { error } = await supabase.from('messages').insert(toDatabaseMessage(message));
       if (error) {
-        console.error('Supabase insert failed for sticker chat message:', error);
+        console.error('Supabase insert failed for chat message:', error);
         return res.status(500).json({ error: 'Unable to send message.' });
       }
     } else if (firebaseEnabled && firebaseDb) {
@@ -703,6 +735,36 @@ app.post('/api/chat', async (req, res) => {
     console.error('Failed to send chat message:', error);
     return res.status(500).json({ error: 'Unable to send message.' });
   }
+});
+
+app.delete('/api/chat/:id', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const messageId = String(req.params.id || '');
+  if (!userId || !messageId) return res.status(400).json({ error: 'Invalid message.' });
+
+  await storeReady;
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages').delete()
+      .eq('id', messageId).eq('from_id', String(userId)).select('id').maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Message not found or cannot be deleted.' });
+  } else if (firebaseEnabled && firebaseDb) {
+    const ref = firebaseDb.collection('messages').doc(messageId);
+    const snapshot = await ref.get();
+    if (!snapshot.exists || snapshot.data().fromId !== String(userId)) {
+      return res.status(404).json({ error: 'Message not found or cannot be deleted.' });
+    }
+    await ref.delete();
+    invalidateFirestoreCache();
+  } else {
+    const index = memoryStore.messages.findIndex((message) =>
+      message.id === messageId && message.fromId === String(userId)
+    );
+    if (index < 0) return res.status(404).json({ error: 'Message not found or cannot be deleted.' });
+    memoryStore.messages.splice(index, 1);
+    persistStore();
+  }
+  res.json({ ok: true, deletedMessageId: messageId });
 });
 
 app.post('/api/calls/log', async (req, res) => {
@@ -730,6 +792,8 @@ app.post('/api/calls/log', async (req, res) => {
 app.post('/api/chat/read', async (req, res) => {
   const { me, other } = req.body || {};
   if (!me || !other) return res.status(400).json({ error: 'Need both ids.' });
+  if (req.cookies?.sessionUserId !== String(me)) return res.status(403).json({ error: 'Chat access denied.' });
+  await storeReady;
   const readAt = new Date().toISOString();
   if (supabaseEnabled) {
     const { error } = await supabase.from('messages').update({ read_at: readAt })
@@ -747,15 +811,17 @@ app.post('/api/chat/read', async (req, res) => {
     });
     persistStore();
   }
-  res.json({ ok: true });
+  res.json({ ok: true, readAt });
 });
 
 app.post('/api/chat/reactions', async (req, res) => {
-  const { messageId, userId, reaction } = req.body || {};
+  const { messageId, reaction } = req.body || {};
+  const userId = req.cookies?.sessionUserId;
   if (!messageId || !userId || !['heart', 'like', 'poop'].includes(reaction)) return res.status(400).json({ error: 'Invalid reaction.' });
+  await storeReady;
   let message = null;
   if (supabaseEnabled) {
-    const { data, error } = await supabase.from('messages').select('id, reactions').eq('id', String(messageId)).maybeSingle();
+    const { data, error } = await supabase.from('messages').select('id, from_id, to_id, reactions').eq('id', String(messageId)).maybeSingle();
     if (error) throw error;
     message = data;
   } else if (firebaseEnabled && firebaseDb) {
@@ -763,6 +829,10 @@ app.post('/api/chat/reactions', async (req, res) => {
     message = doc.exists ? { id: doc.id, ...doc.data() } : null;
   } else message = memoryStore.messages.find((item) => item.id === String(messageId));
   if (!message) return res.status(404).json({ error: 'Message not found.' });
+  if (message.from_id !== String(userId) && message.to_id !== String(userId)
+      && message.fromId !== String(userId) && message.toId !== String(userId)) {
+    return res.status(403).json({ error: 'Chat access denied.' });
+  }
 
   const reactions = { ...(message.reactions || {}) };
   const users = new Set(reactions[reaction] || []);
