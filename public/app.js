@@ -6,6 +6,11 @@ const translations = {
     tabLogin: 'Войти',
     labelYourUserId: 'Ваш user id',
     phRegisterId: 'Например: user-42',
+    userIdRuleAllowed: 'Только латинские буквы и цифры',
+    userIdRuleLength: 'От 3 до 20 символов',
+    userIdRuleLetters: 'Есть латинские буквы',
+    userIdRuleDigits: 'Есть цифры',
+    userIdInvalid: 'User ID должен соответствовать правилам ниже.',
     labelYourName: 'Ваше имя',
     phRegisterLabel: 'Например: Иван',
     labelPassword: 'Пароль',
@@ -65,6 +70,11 @@ const translations = {
     tabLogin: 'Sign In',
     labelYourUserId: 'Your User ID',
     phRegisterId: 'Example: user-42',
+    userIdRuleAllowed: 'Latin letters and digits only',
+    userIdRuleLength: '3 to 20 characters',
+    userIdRuleLetters: 'Contains Latin letters',
+    userIdRuleDigits: 'Contains digits',
+    userIdInvalid: 'User ID must follow the rules below.',
     labelYourName: 'Your Name',
     phRegisterLabel: 'Example: John',
     labelPassword: 'Password',
@@ -124,6 +134,11 @@ const translations = {
     tabLogin: 'Iniciar sesión',
     labelYourUserId: 'Su ID de usuario',
     phRegisterId: 'Ejemplo: user-42',
+    userIdRuleAllowed: 'Solo letras latinas y números',
+    userIdRuleLength: 'De 3 a 20 caracteres',
+    userIdRuleLetters: 'Contiene letras latinas',
+    userIdRuleDigits: 'Contiene números',
+    userIdInvalid: 'El ID de usuario debe cumplir las reglas siguientes.',
     labelYourName: 'Su nombre',
     phRegisterLabel: 'Ejemplo: Juan',
     labelPassword: 'Contraseña',
@@ -202,6 +217,33 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+function getUserIdRuleStatuses(value) {
+  return {
+    allowed: /^[A-Za-z0-9]*$/.test(value),
+    length: value.length >= 3 && value.length <= 20,
+    letters: /[A-Za-z]/.test(value),
+    digits: /[0-9]/.test(value),
+  };
+}
+
+function isValidUserId(value) {
+  return Object.values(getUserIdRuleStatuses(value)).every(Boolean);
+}
+
+function updateUserIdRules() {
+  if (!registerIdInput || !userIdRules) return;
+  const value = registerIdInput.value;
+  const rules = getUserIdRuleStatuses(value);
+  const valid = isValidUserId(value);
+  userIdRules.hidden = !value || valid;
+  userIdRules.querySelectorAll('[data-user-id-rule]').forEach((rule) => {
+    const ruleName = rule.dataset.userIdRule;
+    rule.classList.toggle('is-valid', Boolean(rules[ruleName]));
+    rule.classList.toggle('is-invalid', !rules[ruleName]);
+  });
+  registerIdInput.setCustomValidity(value && !valid ? t('userIdInvalid') : '');
+}
+
 function getAvatarBg(name) {
   const colors = [
     'linear-gradient(135deg, #2563eb, #3b82f6)',
@@ -236,6 +278,8 @@ const unreadUsers = new Set();
 
 const authPage = document.getElementById('authPage');
 const registerForm = document.getElementById('registerForm');
+const registerIdInput = document.getElementById('registerId');
+const userIdRules = document.getElementById('userIdRules');
 const loginForm = document.getElementById('loginForm');
 const authMessage = document.getElementById('authMessage');
 const registerPanel = document.getElementById('registerPanel');
@@ -366,6 +410,7 @@ function applyLanguage(lang) {
   if (currentUser) {
     renderCurrentUserBadge();
   }
+  updateUserIdRules();
 
   if (selectedPartner) {
     updateChatHeader(selectedPartner);
@@ -429,9 +474,16 @@ async function handleAuthSubmit(event, mode) {
   if (!authPage) return;
 
   const form = mode === 'register' ? registerForm : loginForm;
-  const id = form.querySelector('input[name="id"]').value.trim();
+  const idInput = form.querySelector('input[name="id"]');
+  const id = mode === 'register' ? idInput.value : idInput.value.trim();
   const label = form.querySelector('input[name="label"]')?.value.trim() || '';
   const password = form.querySelector('input[name="password"]').value.trim();
+
+  if (mode === 'register' && !isValidUserId(id)) {
+    updateUserIdRules();
+    idInput.reportValidity();
+    return;
+  }
 
   try {
     if (mode === 'register') {
@@ -1251,6 +1303,7 @@ applyLanguage(currentLang);
 if (authPage) {
   setAuthMode('register');
   ensureAuthSession();
+  registerIdInput?.addEventListener('input', updateUserIdRules);
   registerForm.addEventListener('submit', (event) => handleAuthSubmit(event, 'register'));
   loginForm.addEventListener('submit', (event) => handleAuthSubmit(event, 'login'));
   goToLoginBtn?.addEventListener('click', () => setAuthMode('login'));
