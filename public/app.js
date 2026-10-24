@@ -15,12 +15,15 @@ const translations = {
     tabRegister: 'Регистрация',
     tabLogin: 'Войти',
     labelYourUserId: 'Ваш user id',
-    phRegisterId: 'Например: user-42',
+    phRegisterId: 'Например: user42',
     userIdRuleAllowed: 'Только латинские буквы и цифры',
     userIdRuleLength: 'От 3 до 20 символов',
-    userIdRuleLetters: 'Есть латинские буквы',
-    userIdRuleDigits: 'Есть цифры',
     userIdInvalid: 'User ID должен соответствовать правилам ниже.',
+    passwordRuleAllowed: 'Только латинские буквы и цифры',
+    passwordRuleLength: 'Не менее 6 символов',
+    passwordRuleLetters: 'Есть латинские буквы',
+    passwordRuleDigits: 'Есть цифры',
+    passwordInvalid: 'Пароль должен соответствовать правилам ниже.',
     labelYourName: 'Ваше имя',
     phRegisterLabel: 'Например: Иван',
     labelPassword: 'Пароль',
@@ -99,12 +102,15 @@ const translations = {
     tabRegister: 'Register',
     tabLogin: 'Sign In',
     labelYourUserId: 'Your User ID',
-    phRegisterId: 'Example: user-42',
+    phRegisterId: 'Example: user42',
     userIdRuleAllowed: 'Latin letters and digits only',
     userIdRuleLength: '3 to 20 characters',
-    userIdRuleLetters: 'Contains Latin letters',
-    userIdRuleDigits: 'Contains digits',
     userIdInvalid: 'User ID must follow the rules below.',
+    passwordRuleAllowed: 'Latin letters and digits only',
+    passwordRuleLength: 'At least 6 characters',
+    passwordRuleLetters: 'Contains Latin letters',
+    passwordRuleDigits: 'Contains digits',
+    passwordInvalid: 'Password must follow the rules below.',
     labelYourName: 'Your Name',
     phRegisterLabel: 'Example: John',
     labelPassword: 'Password',
@@ -183,12 +189,15 @@ const translations = {
     tabRegister: 'Registro',
     tabLogin: 'Iniciar sesión',
     labelYourUserId: 'Su ID de usuario',
-    phRegisterId: 'Ejemplo: user-42',
+    phRegisterId: 'Ejemplo: user42',
     userIdRuleAllowed: 'Solo letras latinas y números',
     userIdRuleLength: 'De 3 a 20 caracteres',
-    userIdRuleLetters: 'Contiene letras latinas',
-    userIdRuleDigits: 'Contiene números',
     userIdInvalid: 'El ID de usuario debe cumplir las reglas siguientes.',
+    passwordRuleAllowed: 'Solo letras latinas y números',
+    passwordRuleLength: 'Al menos 6 caracteres',
+    passwordRuleLetters: 'Contiene letras latinas',
+    passwordRuleDigits: 'Contiene números',
+    passwordInvalid: 'La contraseña debe cumplir las reglas siguientes.',
     labelYourName: 'Su nombre',
     phRegisterLabel: 'Ejemplo: Juan',
     labelPassword: 'Contraseña',
@@ -281,8 +290,6 @@ function getUserIdRuleStatuses(value) {
   return {
     allowed: /^[A-Za-z0-9]*$/.test(value),
     length: value.length >= 3 && value.length <= 20,
-    letters: /[A-Za-z]/.test(value),
-    digits: /[0-9]/.test(value),
   };
 }
 
@@ -302,6 +309,33 @@ function updateUserIdRules() {
     rule.classList.toggle('is-invalid', !rules[ruleName]);
   });
   registerIdInput.setCustomValidity(value && !valid ? t('userIdInvalid') : '');
+}
+
+function getPasswordRuleStatuses(value) {
+  return {
+    allowed: /^[A-Za-z0-9]*$/.test(value),
+    length: value.length >= 6,
+    letters: /[A-Za-z]/.test(value),
+    digits: /[0-9]/.test(value),
+  };
+}
+
+function isValidRegistrationPassword(value) {
+  return Object.values(getPasswordRuleStatuses(value)).every(Boolean);
+}
+
+function updatePasswordRules() {
+  if (!registerPasswordInput || !passwordRules) return;
+  const value = registerPasswordInput.value;
+  const rules = getPasswordRuleStatuses(value);
+  const valid = isValidRegistrationPassword(value);
+  passwordRules.hidden = !value || valid;
+  passwordRules.querySelectorAll('[data-password-rule]').forEach((rule) => {
+    const ruleName = rule.dataset.passwordRule;
+    rule.classList.toggle('is-valid', Boolean(rules[ruleName]));
+    rule.classList.toggle('is-invalid', !rules[ruleName]);
+  });
+  registerPasswordInput.setCustomValidity(value && !valid ? t('passwordInvalid') : '');
 }
 
 function getAvatarBg(name) {
@@ -341,6 +375,8 @@ const authPage = document.getElementById('authPage');
 const registerForm = document.getElementById('registerForm');
 const registerIdInput = document.getElementById('registerId');
 const userIdRules = document.getElementById('userIdRules');
+const registerPasswordInput = document.getElementById('registerPassword');
+const passwordRules = document.getElementById('passwordRules');
 const loginForm = document.getElementById('loginForm');
 const authMessage = document.getElementById('authMessage');
 const registerPanel = document.getElementById('registerPanel');
@@ -526,6 +562,7 @@ function applyLanguage(lang) {
   }
   if (userList) renderUsers(currentUserList);
   updateUserIdRules();
+  updatePasswordRules();
 
   if (selectedPartner) {
     updateChatHeader(selectedPartner);
@@ -613,11 +650,17 @@ async function handleAuthSubmit(event, mode) {
   const idInput = form.querySelector('input[name="id"]');
   const id = mode === 'register' ? idInput.value : idInput.value.trim();
   const label = form.querySelector('input[name="label"]')?.value.trim() || '';
-  const password = form.querySelector('input[name="password"]').value.trim();
+  const passwordInput = form.querySelector('input[name="password"]');
+  const password = mode === 'register' ? passwordInput.value : passwordInput.value.trim();
 
   if (mode === 'register' && !isValidUserId(id)) {
     updateUserIdRules();
     idInput.reportValidity();
+    return;
+  }
+  if (mode === 'register' && !isValidRegistrationPassword(password)) {
+    updatePasswordRules();
+    passwordInput.reportValidity();
     return;
   }
 
@@ -1483,6 +1526,9 @@ function startRealtimeEvents() {
       console.error('Unable to process typing status:', error);
     }
   });
+  events.addEventListener('account-deleted', () => {
+    window.location.replace('/');
+  });
   events.addEventListener('call-signal', (event) => {
     try {
       const signal = JSON.parse(event.data);
@@ -1599,6 +1645,24 @@ async function bootChatPage() {
     return;
   }
 
+  async function verifyChatSession() {
+    if (!searchInput || !userList || !messagesBox) return;
+    try {
+      const user = await loadCurrentUser();
+      if (!user) window.location.replace('/');
+    } catch (error) {
+      console.error('Unable to verify the chat session:', error);
+    }
+  }
+
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) verifyChatSession();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) verifyChatSession();
+  });
+
   renderCurrentUserBadge();
   updateChatHeader(null);
   startRealtimeEvents();
@@ -1627,6 +1691,7 @@ if (authPage) {
   setAuthMode('register');
   ensureAuthSession();
   registerIdInput?.addEventListener('input', updateUserIdRules);
+  registerPasswordInput?.addEventListener('input', updatePasswordRules);
   registerForm.addEventListener('submit', (event) => handleAuthSubmit(event, 'register'));
   loginForm.addEventListener('submit', (event) => handleAuthSubmit(event, 'login'));
   goToLoginBtn?.addEventListener('click', () => setAuthMode('login'));

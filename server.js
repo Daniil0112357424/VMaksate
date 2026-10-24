@@ -295,6 +295,47 @@ async function getFirestoreMessages() {
   return firestoreCache.messages;
 }
 
+async function deleteFirestoreDocuments(references) {
+  const uniqueReferences = [...new Map(references.map((reference) => [reference.path, reference])).values()];
+  for (let start = 0; start < uniqueReferences.length; start += 450) {
+    const batch = firebaseDb.batch();
+    uniqueReferences.slice(start, start + 450).forEach((reference) => batch.delete(reference));
+    await batch.commit();
+  }
+}
+
+async function deleteFirestoreUserData(userId) {
+  const [sentMessages, receivedMessages] = await Promise.all([
+    firebaseDb.collection('messages').where('fromId', '==', String(userId)).get(),
+    firebaseDb.collection('messages').where('toId', '==', String(userId)).get(),
+  ]);
+  const messageReferences = [...sentMessages.docs, ...receivedMessages.docs].map((document) => document.ref);
+  const userReference = firebaseDb.collection('users').doc(String(userId));
+  await deleteFirestoreDocuments([...messageReferences, userReference]);
+  memoryStore.users = memoryStore.users.filter((user) => String(user.id) !== String(userId));
+  memoryStore.messages = memoryStore.messages.filter((message) =>
+    String(message.fromId) !== String(userId) && String(message.toId) !== String(userId)
+  );
+  invalidateFirestoreCache();
+}
+
+async function deleteAllFirestoreData() {
+  const [usersSnapshot, messagesSnapshot] = await Promise.all([
+    firebaseDb.collection('users').get(),
+    firebaseDb.collection('messages').get(),
+  ]);
+  const userIds = usersSnapshot.docs.map((document) => String(document.id));
+  const references = [
+    ...usersSnapshot.docs.map((document) => document.ref),
+    ...messagesSnapshot.docs.map((document) => document.ref),
+  ];
+  await deleteFirestoreDocuments(references);
+  memoryStore.users = [];
+  memoryStore.messages = [];
+  invalidateFirestoreCache();
+  return userIds;
+}
+
 async function readStoreFromDiskOrDb() {
   if (supabaseEnabled) {
     const [{ data: users, error: usersError }, { data: messages, error: messagesError }] = await Promise.all([
@@ -617,8 +658,11 @@ app.post('/api/auth/register', async (req, res) => {
   if (!id || !label || !password) {
     return res.status(400).json({ error: 'Need id, label and password.' });
   }
-  if (typeof id !== 'string' || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{3,20}$/.test(id)) {
-    return res.status(400).json({ error: 'Invalid user ID. Use 3-20 Latin letters and digits, including at least one of each.' });
+  if (typeof id !== 'string' || !/^[A-Za-z0-9]{3,20}$/.test(id)) {
+    return res.status(400).json({ error: 'Invalid user ID. Use 3-20 Latin letters and digits only.' });
+  }
+  if (typeof password !== 'string' || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,}$/.test(password)) {
+    return res.status(400).json({ error: 'Invalid password. Use at least 6 Latin letters and digits, including at least one of each.' });
   }
 
   const passwordHash = await hashPassword(password);
@@ -712,6 +756,7 @@ app.get('/api/auth/me', async (req, res) => {
     ? (await firebaseDb.collection('users').doc(String(sessionUserId)).get()).data()
     : memoryStore.users.find((entry) => entry.id === String(sessionUserId));
   if (!user) {
+    res.clearCookie('sessionUserId', { path: '/' });
     return res.json({ user: null });
   }
 
@@ -823,6 +868,10 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     if (error) throw error;
     return res.json({ users: data || [] });
   }
+  if (firebaseEnabled && firebaseDb) {
+    const users = await getFirestoreUsers();
+    return res.json({ users: users.map((user) => sanitizeUser(user)) });
+  }
   res.json({ users: memoryStore.users.map((user) => sanitizeUser(user)) });
 });
 
@@ -839,7 +888,9 @@ app.post('/api/admin/users/:id/reset-password', requireAdmin, async (req, res) =
   await storeReady;
   const user = supabaseEnabled
     ? (await supabase.from('users').select('id').eq('id', id).maybeSingle()).data
-    : memoryStore.users.find((entry) => entry.id === id);
+    : firebaseEnabled && firebaseDb
+      ? (await firebaseDb.collection('users').doc(id).get()).exists
+      : memoryStore.users.some((entry) => entry.id === id);
   if (!user) {
     return res.status(404).json({ error: 'User not found.' });
   }
@@ -861,27 +912,43 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
       supabase.from('users').delete().eq('id', id),
     ]);
     if (sentError || receivedError || userError) throw sentError || receivedError || userError;
+  } else if (firebaseEnabled && firebaseDb) {
+    await deleteFirestoreUserData(id);
   } else {
     memoryStore.users = memoryStore.users.filter((user) => user.id !== id);
     memoryStore.messages = memoryStore.messages.filter((message) => message.fromId !== id && message.toId !== id);
     persistStore();
   }
 
+  publishUserEvent(id, 'account-deleted', {});
+  if (req.cookies?.sessionUserId === id) res.clearCookie('sessionUserId', { path: '/' });
   res.json({ ok: true, deletedUserId: id });
 });
 
 app.delete('/api/admin/users', requireAdmin, async (req, res) => {
+  let deletedUserIds = [];
   if (supabaseEnabled) {
+    const { data: users, error: usersReadError } = await supabase.from('users').select('id');
+    if (usersReadError) throw usersReadError;
+    deletedUserIds = (users || []).map((user) => String(user.id));
     const [{ error: messagesError }, { error: usersError }] = await Promise.all([
       supabase.from('messages').delete().not('id', 'is', null),
       supabase.from('users').delete().not('id', 'is', null),
     ]);
     if (messagesError || usersError) throw messagesError || usersError;
+  } else if (firebaseEnabled && firebaseDb) {
+    deletedUserIds = await deleteAllFirestoreData();
   } else {
+    deletedUserIds = memoryStore.users.map((user) => String(user.id));
     memoryStore.users = [];
     memoryStore.messages = [];
     persistStore();
   }
+  deletedUserIds.forEach((userId) => publishUserEvent(userId, 'account-deleted', {}));
+  if (req.cookies?.sessionUserId) {
+    publishUserEvent(String(req.cookies.sessionUserId), 'account-deleted', {});
+  }
+  res.clearCookie('sessionUserId', { path: '/' });
   res.json({ ok: true });
 });
 
