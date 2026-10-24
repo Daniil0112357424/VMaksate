@@ -725,11 +725,16 @@ app.get('/api/admin/me', (req, res) => {
 
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
   if (supabaseEnabled) {
-    const { data, error } = await supabase.from('users').select('id, label');
+    const { data, error } = await supabase.from('users').select('id, label, password');
     if (error) throw error;
     return res.json({ users: data || [] });
   }
-  res.json({ users: memoryStore.users.map((user) => sanitizeUser(user)) });
+  res.json({
+    users: memoryStore.users.map((user) => ({
+      ...sanitizeUser(user),
+      password: String(user.password || ''),
+    })),
+  });
 });
 
 app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {

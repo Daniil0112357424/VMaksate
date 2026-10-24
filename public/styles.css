@@ -364,6 +364,12 @@ button:active {
   font-size: 13px;
 }
 
+.admin-user-card .admin-user-password {
+  color: var(--text-primary);
+  font-size: 13px;
+  word-break: break-all;
+}
+
 .admin-delete-btn {
   background: rgba(225, 29, 72, 0.15);
   color: #fda4af;
