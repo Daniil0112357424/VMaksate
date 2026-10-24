@@ -1,7 +1,17 @@
 const translations = {
   ru: {
     appTitle: 'ВМаксате',
-    authSubtitle: 'Регистрация и вход в ваш аккаунт',
+    authWelcome: 'Добро пожаловать',
+    authSubtitle: 'Войдите в аккаунт или создайте новый',
+    authKicker: 'Личный мессенджер',
+    authHeroTitle: 'Ближе к тем, кто важен.',
+    authHeroText: 'Спокойный, быстрый и понятный мессенджер. Всё нужное — под рукой.',
+    authFeatureChats: 'Личные диалоги',
+    authFeatureMedia: 'Фото и стикеры',
+    authFeatureCalls: 'Аудио и видеозвонки',
+    authFooter: 'Сделано для спокойного общения',
+    themeToggle: 'Сменить тему',
+    closeBtnLabel: 'Закрыть',
     tabRegister: 'Регистрация',
     tabLogin: 'Войти',
     labelYourUserId: 'Ваш user id',
@@ -40,7 +50,7 @@ const translations = {
     audioCallTitle: 'Аудиозвонок', videoCallTitle: 'Видеозвонок', acceptCallTitle: 'Ответить', declineCallTitle: 'Отклонить', endCallTitle: 'Завершить звонок',
     callIncoming: 'Входящий звонок...', callCalling: 'Звоним...', callConnecting: 'Подключение...', callInProgress: 'В звонке', callDeclined: 'Звонок отклонён', callBusy: 'Пользователь уже разговаривает',
     callMediaError: 'Не удалось получить доступ к микрофону или камере.', callUnsupported: 'Звонки не поддерживаются этим браузером.',
-    profileBtn: 'Профиль', profileTitle: 'Профиль', profileNameLabel: 'Имя', profileUserIdLabel: 'User ID', saveProfileBtn: 'Сохранить', attachPhotoTitle: 'Прикрепить фото',
+    profileBtn: 'Профиль', profileTitle: 'Профиль', profileNameLabel: 'Имя', profileUserIdLabel: 'User ID', saveProfileBtn: 'Сохранить', attachPhotoTitle: 'Прикрепить фото', stickersTitle: 'Стикеры',
     profileAboutLabel: 'О себе', profileAboutPlaceholder: 'Расскажите немного о себе',
     errImageTooLarge: 'Фото должно быть не больше 5 МБ.',
     callAudio: 'Аудиозвонок', callVideo: 'Видеозвонок', callMissed: 'Пропущенный {mode}', callCompleted: '{mode}', callDeclinedLog: 'Отклонённый {mode}',
@@ -55,6 +65,7 @@ const translations = {
     // Admin page
     adminTitle: 'Admin Panel',
     adminSubtitle: 'Доступ только по паролю',
+    adminUsersTitle: 'Пользователи',
     phAdminPassword: 'Введите пароль',
     btnAdminLogin: 'Войти в админку',
     btnDeleteAll: 'Удалить всех',
@@ -74,7 +85,17 @@ const translations = {
   },
   en: {
     appTitle: 'VMaksate',
-    authSubtitle: 'Registration and sign in to your account',
+    authWelcome: 'Welcome',
+    authSubtitle: 'Sign in or create a new account',
+    authKicker: 'Private messenger',
+    authHeroTitle: 'Closer to the people who matter.',
+    authHeroText: 'A calm, fast and simple messenger. Everything you need, right where it belongs.',
+    authFeatureChats: 'Private conversations',
+    authFeatureMedia: 'Photos and stickers',
+    authFeatureCalls: 'Audio and video calls',
+    authFooter: 'Made for calm conversations',
+    themeToggle: 'Toggle theme',
+    closeBtnLabel: 'Close',
     tabRegister: 'Register',
     tabLogin: 'Sign In',
     labelYourUserId: 'Your User ID',
@@ -113,7 +134,7 @@ const translations = {
     audioCallTitle: 'Audio call', videoCallTitle: 'Video call', acceptCallTitle: 'Answer', declineCallTitle: 'Decline', endCallTitle: 'End call',
     callIncoming: 'Incoming call...', callCalling: 'Calling...', callConnecting: 'Connecting...', callInProgress: 'In call', callDeclined: 'Call declined', callBusy: 'User is already in a call',
     callMediaError: 'Unable to access the microphone or camera.', callUnsupported: 'Calls are not supported by this browser.',
-    profileBtn: 'Profile', profileTitle: 'Profile', profileNameLabel: 'Name', profileUserIdLabel: 'User ID', saveProfileBtn: 'Save', attachPhotoTitle: 'Attach photo',
+    profileBtn: 'Profile', profileTitle: 'Profile', profileNameLabel: 'Name', profileUserIdLabel: 'User ID', saveProfileBtn: 'Save', attachPhotoTitle: 'Attach photo', stickersTitle: 'Stickers',
     profileAboutLabel: 'About', profileAboutPlaceholder: 'Tell a little about yourself',
     errImageTooLarge: 'Image must be 5 MB or smaller.',
     callAudio: 'Audio call', callVideo: 'Video call', callMissed: 'Missed {mode}', callCompleted: '{mode}', callDeclinedLog: 'Declined {mode}',
@@ -128,6 +149,7 @@ const translations = {
     // Admin page
     adminTitle: 'Admin Panel',
     adminSubtitle: 'Password restricted access',
+    adminUsersTitle: 'Users',
     phAdminPassword: 'Enter password',
     btnAdminLogin: 'Log in as Admin',
     btnDeleteAll: 'Delete All Users',
@@ -147,7 +169,17 @@ const translations = {
   },
   es: {
     appTitle: 'VMaksate',
-    authSubtitle: 'Registro e inicio de sesión en su cuenta',
+    authWelcome: 'Bienvenido',
+    authSubtitle: 'Inicia sesión o crea una cuenta nueva',
+    authKicker: 'Mensajería personal',
+    authHeroTitle: 'Más cerca de quienes importan.',
+    authHeroText: 'Un mensajero tranquilo, rápido y sencillo. Todo lo necesario, en su sitio.',
+    authFeatureChats: 'Conversaciones privadas',
+    authFeatureMedia: 'Fotos y stickers',
+    authFeatureCalls: 'Llamadas de audio y vídeo',
+    authFooter: 'Hecho para conversaciones tranquilas',
+    themeToggle: 'Cambiar tema',
+    closeBtnLabel: 'Cerrar',
     tabRegister: 'Registro',
     tabLogin: 'Iniciar sesión',
     labelYourUserId: 'Su ID de usuario',
@@ -186,7 +218,7 @@ const translations = {
     audioCallTitle: 'Llamada de audio', videoCallTitle: 'Videollamada', acceptCallTitle: 'Responder', declineCallTitle: 'Rechazar', endCallTitle: 'Finalizar llamada',
     callIncoming: 'Llamada entrante...', callCalling: 'Llamando...', callConnecting: 'Conectando...', callInProgress: 'En llamada', callDeclined: 'Llamada rechazada', callBusy: 'El usuario ya está en una llamada',
     callMediaError: 'No se pudo acceder al micrófono o la cámara.', callUnsupported: 'Este navegador no admite llamadas.',
-    profileBtn: 'Perfil', profileTitle: 'Perfil', profileNameLabel: 'Nombre', profileUserIdLabel: 'ID de usuario', saveProfileBtn: 'Guardar', attachPhotoTitle: 'Adjuntar foto',
+    profileBtn: 'Perfil', profileTitle: 'Perfil', profileNameLabel: 'Nombre', profileUserIdLabel: 'ID de usuario', saveProfileBtn: 'Guardar', attachPhotoTitle: 'Adjuntar foto', stickersTitle: 'Stickers',
     profileAboutLabel: 'Acerca de mí', profileAboutPlaceholder: 'Cuéntanos un poco sobre ti',
     errImageTooLarge: 'La imagen debe tener 5 MB o menos.',
     callAudio: 'Llamada de audio', callVideo: 'Videollamada', callMissed: 'Llamada perdida: {mode}', callCompleted: '{mode}', callDeclinedLog: '{mode} rechazada',
@@ -201,6 +233,7 @@ const translations = {
     // Admin page
     adminTitle: 'Panel de Admin',
     adminSubtitle: 'Acceso restringido por contraseña',
+    adminUsersTitle: 'Usuarios',
     phAdminPassword: 'Ingrese contraseña',
     btnAdminLogin: 'Entrar como Admin',
     btnDeleteAll: 'Eliminar a todos',
@@ -273,12 +306,12 @@ function updateUserIdRules() {
 
 function getAvatarBg(name) {
   const colors = [
-    'linear-gradient(135deg, #2563eb, #3b82f6)',
-    'linear-gradient(135deg, #7c3aed, #8b5cf6)',
-    'linear-gradient(135deg, #059669, #10b981)',
-    'linear-gradient(135deg, #d97706, #f59e0b)',
-    'linear-gradient(135deg, #dc2626, #ef4444)',
-    'linear-gradient(135deg, #db2777, #ec4899)',
+    'linear-gradient(140deg, #5b57e8, #8b7cff)',
+    'linear-gradient(140deg, #0d9488, #2dd4bf)',
+    'linear-gradient(140deg, #d97706, #fbbf24)',
+    'linear-gradient(140deg, #db2777, #f472b6)',
+    'linear-gradient(140deg, #2563eb, #38bdf8)',
+    'linear-gradient(140deg, #7c3aed, #c084fc)',
   ];
   let hash = 0;
   const str = String(name || '');
@@ -379,12 +412,14 @@ function renderCurrentUserBadge() {
     currentUserBadge.innerHTML = '';
     return;
   }
-  const labelText = t('yourIdLabel');
+  const initial = (currentUser.label || currentUser.id).charAt(0).toUpperCase();
   currentUserBadge.innerHTML = `
     <div class="user-badge-box">
-      <div class="user-badge-label">${escapeHtml(labelText)}</div>
-      <div class="user-badge-id">${escapeHtml(currentUser.id)}</div>
-      <div class="user-badge-sub">${escapeHtml(currentUser.label)}</div>
+      <div class="user-badge-avatar" style="background:${getAvatarBg(currentUser.label || currentUser.id)}">${escapeHtml(initial)}</div>
+      <div class="user-badge-info">
+        <div class="user-badge-sub">${escapeHtml(currentUser.label)}</div>
+        <div class="user-badge-id">@${escapeHtml(currentUser.id)}</div>
+      </div>
     </div>
   `;
 }
@@ -393,6 +428,7 @@ function updateChatHeader(user) {
   if (!chatPartner) return;
   clearTimeout(typingIndicatorTimeout);
   typingIndicator?.classList.remove('visible');
+  const chatPanel = chatPartner.closest('.chat-panel');
   if (!user) {
     chatPartner.textContent = t('selectPartnerPlaceholder');
     if (partnerAbout) {
@@ -402,8 +438,10 @@ function updateChatHeader(user) {
     if (partnerAvatar) partnerAvatar.classList.add('hidden');
     if (audioCallBtn) audioCallBtn.disabled = true;
     if (videoCallBtn) videoCallBtn.disabled = true;
+    chatPanel?.classList.add('no-chat');
     return;
   }
+  chatPanel?.classList.remove('no-chat');
   chatPartner.textContent = user.label;
   if (partnerAbout) {
     partnerAbout.textContent = user.about || '';
@@ -500,10 +538,31 @@ function applyLanguage(lang) {
   }
 }
 
+function applyTheme(theme) {
+  const nextTheme = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = nextTheme;
+  document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(nextTheme === 'dark'));
+  });
+  try {
+    localStorage.setItem('vmakstate_theme', nextTheme);
+  } catch (error) {
+    // Theme preference is optional; ignore storage errors.
+  }
+}
+
+document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+  button.addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
+});
+
+applyTheme(document.documentElement.dataset.theme || 'light');
+
 async function showAuthMessage(text, isError = false) {
   if (!authMessage) return;
   authMessage.textContent = text;
-  authMessage.style.color = isError ? '#fca5a5' : '#93c5fd';
+  authMessage.style.color = isError ? 'var(--danger-text)' : 'var(--accent-ink)';
 }
 
 async function createUserFromAuth(id, label, password) {
@@ -1456,7 +1515,7 @@ async function loadCurrentUser() {
 async function showAdminMessage(text, isError = false) {
   if (!adminMessage) return;
   adminMessage.textContent = text;
-  adminMessage.style.color = isError ? '#fca5a5' : '#93c5fd';
+  adminMessage.style.color = isError ? 'var(--danger-text)' : 'var(--accent-ink)';
 }
 
 async function loadAdminUsers() {
@@ -1470,13 +1529,17 @@ async function loadAdminUsers() {
     return;
   }
 
+  const adminUserCount = document.getElementById('adminUserCount');
+  if (adminUserCount) adminUserCount.textContent = String(data.users.length);
+
   adminUserList.innerHTML = '';
   data.users.forEach((user) => {
     const card = document.createElement('div');
     card.className = 'admin-user-card';
     const deleteBtnText = t('btnDeleteUser');
     const resetBtnText = t('btnResetPassword');
-    card.innerHTML = `<div><strong>${escapeHtml(user.label)}</strong><br /><span>${escapeHtml(user.id)}</span></div><div class="admin-user-actions"><button type="button" class="admin-reset-btn">${escapeHtml(resetBtnText)}</button><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button></div>`;
+    const initial = (user.label || user.id).charAt(0).toUpperCase();
+    card.innerHTML = `<div class="admin-user-identity"><span class="admin-user-avatar" style="background:${getAvatarBg(user.label || user.id)}">${escapeHtml(initial)}</span><div><strong>${escapeHtml(user.label)}</strong><span>${escapeHtml(user.id)}</span></div></div><div class="admin-user-actions"><button type="button" class="admin-reset-btn">${escapeHtml(resetBtnText)}</button><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button></div>`;
 
     card.querySelector('.admin-reset-btn').addEventListener('click', async () => {
       const newPassword = window.prompt(t('promptNewPassword', { id: user.id }));
@@ -1515,6 +1578,7 @@ async function checkAdminAccess() {
 
   const response = await fetch('/api/admin/me');
   const data = await response.json();
+  adminPage.classList.toggle('dashboard-open', Boolean(data.admin));
   if (!data.admin) {
     adminLoginSection?.classList.add('active');
     adminDashboard?.classList.remove('active');

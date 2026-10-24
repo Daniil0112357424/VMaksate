@@ -14,6 +14,25 @@
       "id": "demo2",
       "label": "demo2",
       "password": ""
+    },
+    {
+      "id": "mira7",
+      "label": "Мира",
+      "password": "$2b$10$BrklhPhnqLBDgirlZJlgSe/FWkGIt2JRhZFkBSZEdC0UWvaDcEhzS",
+      "about": "Люблю тихие вечера и хорошие разговоры",
+      "avatarData": null
+    },
+    {
+      "id": "max7",
+      "label": "Максим",
+      "password": "$2b$10$9Cs7ryWASH61U6AI.XX0AuldUAWlatGyGTIsTlSH9dfMN2NWrp8oC",
+      "about": "Дизайн, музыка и кофе",
+      "avatarData": null
+    },
+    {
+      "id": "lena9",
+      "label": "Лена",
+      "password": "$2b$10$D1FNBwarxVQjVN4iDErV2Os.wlDWPLStVY63uPZLfHYOkwM4qqDtK"
     }
   ],
   "messages": [
@@ -28,6 +47,94 @@
       "reactions": {},
       "readAt": null,
       "createdAt": "2026-10-20T16:54:25.944Z"
+    },
+    {
+      "id": "f3f87e55-275d-48c5-b6c1-cfaafe235c38",
+      "fromId": "max7",
+      "toId": "mira7",
+      "text": "Привет! Как проходит день?",
+      "imageData": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readAt": "2026-10-24T15:14:09.113Z",
+      "createdAt": "2026-10-24T15:10:58.997Z",
+      "deliveredAt": "2026-10-24T15:14:09.058Z"
+    },
+    {
+      "id": "56a6268e-d503-461a-b43a-dfeed413f9c0",
+      "fromId": "mira7",
+      "toId": "max7",
+      "text": "Привет) Спокойно. Наконец-то доделала проект и пью кофе ☕",
+      "imageData": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readAt": null,
+      "createdAt": "2026-10-24T15:10:59.001Z"
+    },
+    {
+      "id": "cc78042e-36d5-4674-b416-a61ef8b18b36",
+      "fromId": "max7",
+      "toId": "mira7",
+      "text": "Звучит отлично. Покажешь, что получилось?",
+      "imageData": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readAt": "2026-10-24T15:14:09.113Z",
+      "createdAt": "2026-10-24T15:10:59.004Z",
+      "deliveredAt": "2026-10-24T15:14:09.058Z"
+    },
+    {
+      "id": "5781bad3-9449-4770-9f0b-57c5a5621a89",
+      "fromId": "mira7",
+      "toId": "max7",
+      "text": "Конечно! Вечером скину пару скриншотов.",
+      "imageData": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readAt": null,
+      "createdAt": "2026-10-24T15:10:59.007Z"
+    },
+    {
+      "id": "2ffe4fa7-85cb-44f8-ae13-4b2663fd2885",
+      "fromId": "max7",
+      "toId": "mira7",
+      "text": "Договорились. Тогда до вечера 👌",
+      "imageData": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readAt": "2026-10-24T15:14:09.113Z",
+      "createdAt": "2026-10-24T15:10:59.010Z",
+      "deliveredAt": "2026-10-24T15:14:09.058Z"
+    },
+    {
+      "id": "ae119ff8-b5cb-4db9-982d-f2b4334f3e3b",
+      "fromId": "mira7",
+      "toId": "max7",
+      "text": "До вечера!",
+      "imageData": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readAt": null,
+      "createdAt": "2026-10-24T15:10:59.013Z"
+    },
+    {
+      "id": "066514eb-0a06-425d-a005-331ba5c0e820",
+      "fromId": "lena9",
+      "toId": "mira7",
+      "text": "Не забудь про завтрашнюю встречу 🙂",
+      "imageData": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readAt": "2026-10-24T15:36:37.637Z",
+      "createdAt": "2026-10-24T15:10:59.016Z",
+      "deliveredAt": "2026-10-24T15:36:37.608Z"
     }
   ],
   "callSignals": []

@@ -4,9 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title data-i18n="adminTitle">ВМаксате — Admin</title>
+    <script>
+      (function () {
+        try {
+          document.documentElement.dataset.theme = localStorage.getItem('vmakstate_theme') === 'dark' ? 'dark' : 'light';
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light';
+        }
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
@@ -15,18 +24,29 @@
         <div class="card-header">
           <div class="brand-logo">
             <div class="brand-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
               </svg>
             </div>
             <h1 data-i18n="adminTitle">Admin Panel</h1>
           </div>
-          <div class="lang-switcher">
-            <select class="langSelect lang-select" aria-label="Language selector">
-              <option value="ru">🇷🇺 RU</option>
-              <option value="en">🇬🇧 EN</option>
-              <option value="es">🇪🇸 ES</option>
-            </select>
+          <div class="header-tools">
+            <div class="lang-switcher">
+              <select class="langSelect lang-select" aria-label="Language selector">
+                <option value="ru">RU</option>
+                <option value="en">EN</option>
+                <option value="es">ES</option>
+              </select>
+            </div>
+            <button class="icon-btn theme-toggle" type="button" data-theme-toggle data-i18n-title="themeToggle" aria-label="Сменить тему" aria-pressed="false">
+              <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+              </svg>
+              <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+              </svg>
+            </button>
           </div>
         </div>
         <p class="auth-subtitle" data-i18n="adminSubtitle">Доступ только по паролю</p>
@@ -48,6 +68,10 @@
           </div>
 
           <div id="adminMessage" class="auth-message"></div>
+          <div class="admin-list-head">
+            <strong data-i18n="adminUsersTitle">Пользователи</strong>
+            <span id="adminUserCount" class="admin-user-count"></span>
+          </div>
           <div id="adminUserList" class="admin-user-list"></div>
         </section>
       </section>
