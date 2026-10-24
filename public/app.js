@@ -66,7 +66,11 @@ const translations = {
     errNoAdminAccess: 'Нет доступа к админке.',
     errDeleteUser: 'Не удалось удалить пользователя.',
     errDeleteAll: 'Не удалось удалить всех пользователей.',
-    errInvalidPassword: 'Неверный пароль.'
+    errInvalidPassword: 'Неверный пароль.',
+    btnResetPassword: 'Сбросить пароль',
+    promptNewPassword: 'Новый пароль для {id}:',
+    errResetPassword: 'Не удалось сбросить пароль.',
+    msgPasswordReset: 'Пароль аккаунта {id} сброшен.'
   },
   en: {
     appTitle: 'VMaksate',
@@ -135,7 +139,11 @@ const translations = {
     errNoAdminAccess: 'No admin access.',
     errDeleteUser: 'Failed to delete user.',
     errDeleteAll: 'Failed to delete all users.',
-    errInvalidPassword: 'Invalid password.'
+    errInvalidPassword: 'Invalid password.',
+    btnResetPassword: 'Reset password',
+    promptNewPassword: 'New password for {id}:',
+    errResetPassword: 'Failed to reset password.',
+    msgPasswordReset: 'Password for {id} has been reset.'
   },
   es: {
     appTitle: 'VMaksate',
@@ -204,7 +212,11 @@ const translations = {
     errNoAdminAccess: 'Sin acceso de administrador.',
     errDeleteUser: 'No se pudo eliminar el usuario.',
     errDeleteAll: 'No se pudo eliminar a todos los usuarios.',
-    errInvalidPassword: 'Contraseña incorrecta.'
+    errInvalidPassword: 'Contraseña incorrecta.',
+    btnResetPassword: 'Restablecer contraseña',
+    promptNewPassword: 'Nueva contraseña para {id}:',
+    errResetPassword: 'No se pudo restablecer la contraseña.',
+    msgPasswordReset: 'La contraseña de {id} se ha restablecido.'
   }
 };
 
@@ -1463,9 +1475,24 @@ async function loadAdminUsers() {
     const card = document.createElement('div');
     card.className = 'admin-user-card';
     const deleteBtnText = t('btnDeleteUser');
-    const rawPassword = String(user.password || '');
-    const passwordText = rawPassword ? escapeHtml(rawPassword) : '—';
-    card.innerHTML = `<div><strong>${escapeHtml(user.label)}</strong><br /><span>${escapeHtml(user.id)}</span><br /><span class="admin-user-password">${escapeHtml(t('labelPassword'))}: ${passwordText}</span></div><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button>`;
+    const resetBtnText = t('btnResetPassword');
+    card.innerHTML = `<div><strong>${escapeHtml(user.label)}</strong><br /><span>${escapeHtml(user.id)}</span></div><div class="admin-user-actions"><button type="button" class="admin-reset-btn">${escapeHtml(resetBtnText)}</button><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button></div>`;
+
+    card.querySelector('.admin-reset-btn').addEventListener('click', async () => {
+      const newPassword = window.prompt(t('promptNewPassword', { id: user.id }));
+      if (!newPassword) return;
+      const resetResponse = await fetch(`/api/admin/users/${encodeURIComponent(user.id)}/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const result = await resetResponse.json();
+      if (!resetResponse.ok) {
+        showAdminMessage(result.error || t('errResetPassword'), true);
+        return;
+      }
+      showAdminMessage(t('msgPasswordReset', { id: user.id }));
+    });
 
     card.querySelector('.admin-delete-btn').addEventListener('click', async () => {
       if (!window.confirm(t('confirmDeleteUser', { id: user.id }))) return;
