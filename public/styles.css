@@ -608,6 +608,10 @@ button:active {
   gap: 12px;
 }
 
+.chat-partner-details { display: flex; flex-direction: column; align-items: flex-start; }
+.typing-indicator { min-height: 0; color: #60a5fa; font-size: 11px; line-height: 0; opacity: 0; transition: opacity 0.16s ease, line-height 0.16s ease; }
+.typing-indicator.visible { min-height: 14px; line-height: 14px; opacity: 1; }
+
 .partner-avatar {
   width: 40px;
   height: 40px;
@@ -626,6 +630,9 @@ button:active {
 .partner-avatar.hidden {
   display: none;
 }
+
+.partner-about { max-width: min(42vw, 360px); overflow: hidden; color: var(--text-muted); font-size: 11px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.partner-about.hidden { display: none; }
 
 .mobile-back-btn {
   display: none;
@@ -809,6 +816,13 @@ button:active {
   margin-top: 4px;
   opacity: 0.7;
 }
+.message-edited { margin-left: 6px; font-style: italic; }
+.message-edit-form { display: grid; gap: 8px; min-width: min(280px, 68vw); }
+.message-edit-input { width: 100%; min-height: 72px; padding: 9px 10px; resize: vertical; border: 1px solid var(--border-color); border-radius: 9px; background: rgba(15, 23, 42, 0.55); color: inherit; font: inherit; }
+.message-edit-controls { display: flex; justify-content: flex-end; gap: 7px; }
+.message-edit-save, .message-edit-cancel { padding: 6px 10px; border-radius: 7px; font-size: 12px; }
+.message-edit-save { background: #2563eb; color: #fff; }
+.message-edit-cancel { background: var(--bg-input); color: var(--text-secondary); }
 
 .message-actions { position: absolute; top: 5px; right: 5px; z-index: 2; opacity: 0; transition: opacity 0.15s ease; }
 .message.other .message-actions { right: auto; left: 5px; }
@@ -832,6 +846,8 @@ button:active {
 .message-reaction-option.active { border-color: #60a5fa; background: rgba(37, 99, 235, 0.3); }
 .message-delivery-status { align-self: flex-end; color: rgba(255, 255, 255, 0.72); font-size: 10px; }
 .message-delete-btn { display: flex; width: 100%; justify-content: flex-start; padding: 7px 8px; border-radius: 6px; background: transparent; color: #fda4af; font-size: 12px; }
+.message-edit-btn { display: flex; width: 100%; justify-content: flex-start; padding: 7px 8px; border-radius: 6px; background: transparent; color: var(--text-primary); font-size: 12px; }
+.message-edit-btn:hover { background: var(--bg-input); }
 .message-delete-btn:hover { color: #fff; text-decoration: underline; }
 .message-actions-menu .message-delete-btn { margin-top: 7px; border-top: 1px solid var(--border-color); border-radius: 0 0 6px 6px; }
 

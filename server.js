@@ -22,6 +22,7 @@ let firebaseEnabled = false;
 let supabase = null;
 let supabaseEnabled = false;
 const userEventClients = new Map();
+const typingEventThrottle = new Map();
 
 function publishUserEvent(userId, eventName, payload) {
   const clients = userEventClients.get(String(userId));
@@ -137,6 +138,35 @@ app.get('/api/events', (req, res) => {
   });
 });
 
+app.post('/api/chat/typing', (req, res) => {
+  const fromId = req.cookies?.sessionUserId;
+  const toId = String(req.body?.toId || '');
+  const isTyping = req.body?.isTyping === true;
+  if (!fromId || !toId || fromId === toId) {
+    return res.status(400).json({ error: 'Invalid typing event.' });
+  }
+
+  const throttleKey = `${fromId}:${toId}`;
+  const now = Date.now();
+  const previousEvent = typingEventThrottle.get(throttleKey) || { lastTypingAt: 0, lastEventAt: 0 };
+  if ((isTyping && now - previousEvent.lastTypingAt < 1500)
+      || (!isTyping && now - previousEvent.lastEventAt < 250)) {
+    return res.json({ ok: true, throttled: true });
+  }
+
+  typingEventThrottle.set(throttleKey, {
+    lastTypingAt: isTyping ? now : previousEvent.lastTypingAt,
+    lastEventAt: now,
+  });
+  if (typingEventThrottle.size > 10000) {
+    for (const [key, eventState] of typingEventThrottle) {
+      if (now - eventState.lastEventAt > 60000) typingEventThrottle.delete(key);
+    }
+  }
+  publishUserEvent(toId, 'chat-typing', { fromId: String(fromId), isTyping });
+  res.json({ ok: true });
+});
+
 if (supabaseEnabled) {
   supabase.channel('app-realtime-events')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, ({ new: message }) => {
@@ -162,7 +192,7 @@ if (supabaseEnabled) {
 } else if (firebaseEnabled && firebaseDb) {
   firebaseDb.collection('messages').onSnapshot((snapshot) => {
     snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') publishChatMessage(change.doc.data());
+      if (change.type === 'added' || change.type === 'modified') publishChatMessage(change.doc.data());
     });
   }, (error) => console.error('Firestore message listener failed:', error.message));
   firebaseDb.collection('callSignals').onSnapshot((snapshot) => {
@@ -219,7 +249,7 @@ async function readStoreFromDiskOrDb() {
   if (supabaseEnabled) {
     const [{ data: users, error: usersError }, { data: messages, error: messagesError }] = await Promise.all([
       supabase.from('users').select('id, label, password'),
-      supabase.from('messages').select('id, from_id, to_id, text, created_at'),
+      supabase.from('messages').select('id, from_id, to_id, text, edited_at, created_at'),
     ]);
     if (usersError) throw usersError;
     if (messagesError) throw messagesError;
@@ -350,6 +380,7 @@ function toAppMessage(message) {
     reactions: message.reactions || {},
     deliveredAt: message.delivered_at || message.deliveredAt || null,
     readAt: message.read_at || null,
+    editedAt: message.edited_at || message.editedAt || null,
     createdAt: String(message.created_at),
   };
 }
@@ -369,6 +400,7 @@ function toDatabaseMessage(message) {
     reactions: message.reactions || {},
     delivered_at: message.deliveredAt || null,
     read_at: message.readAt || null,
+    edited_at: message.editedAt || null,
     created_at: message.createdAt,
   };
 }
@@ -378,6 +410,7 @@ function sanitizeUser(user) {
     id: user.id,
     label: user.label,
     avatarData: user.avatar_data || user.avatarData || null,
+    about: user.about || '',
   };
 }
 
@@ -439,7 +472,7 @@ app.get('/api/users', async (req, res) => {
   await storeReady;
 
   if (supabaseEnabled) {
-    const userQuery = supabase.from('users').select('id, label, avatar_data');
+    const userQuery = supabase.from('users').select('id, label, avatar_data, about');
     const [{ data: users, error: usersError }, messageResults] = await Promise.all([
       userQuery,
       !search && me
@@ -585,7 +618,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   await storeReady;
   const user = supabaseEnabled
-    ? (await supabase.from('users').select('id, label, password, avatar_data').eq('id', String(id)).maybeSingle()).data
+    ? (await supabase.from('users').select('id, label, password, avatar_data, about').eq('id', String(id)).maybeSingle()).data
     : firebaseEnabled && firebaseDb
     ? (await firebaseDb.collection('users').doc(String(id)).get()).data()
     : memoryStore.users.find((entry) => entry.id === String(id));
@@ -610,7 +643,7 @@ app.get('/api/auth/me', async (req, res) => {
 
   await storeReady;
   const user = supabaseEnabled
-    ? (await supabase.from('users').select('id, label, avatar_data').eq('id', String(sessionUserId)).maybeSingle()).data
+    ? (await supabase.from('users').select('id, label, avatar_data, about').eq('id', String(sessionUserId)).maybeSingle()).data
     : firebaseEnabled && firebaseDb
     ? (await firebaseDb.collection('users').doc(String(sessionUserId)).get()).data()
     : memoryStore.users.find((entry) => entry.id === String(sessionUserId));
@@ -624,14 +657,19 @@ app.get('/api/auth/me', async (req, res) => {
 app.patch('/api/auth/profile', async (req, res) => {
   const sessionUserId = req.cookies?.sessionUserId;
   const { label, avatarData } = req.body || {};
+  const about = typeof req.body?.about === 'string' ? req.body.about.trim() : '';
   const cleanLabel = String(label || '').trim();
   if (!sessionUserId || !cleanLabel || cleanLabel.length > 80) return res.status(400).json({ error: 'Invalid profile.' });
+  if (about.length > 160) return res.status(400).json({ error: 'About text must be 160 characters or fewer.' });
   if (avatarData !== null && avatarData !== undefined && !validImageData(avatarData)) return res.status(400).json({ error: 'Invalid image.' });
 
-  const update = { label: cleanLabel, avatarData: avatarData ?? null };
+  const update = { label: cleanLabel, about, avatarData: avatarData ?? null };
   if (supabaseEnabled) {
-    const { data, error } = await supabase.from('users').update({ label: cleanLabel, avatar_data: update.avatarData })
-      .eq('id', String(sessionUserId)).select('id, label, avatar_data').single();
+    const { data, error } = await supabase.from('users').update({
+      label: cleanLabel,
+      avatar_data: update.avatarData,
+      about: update.about,
+    }).eq('id', String(sessionUserId)).select('id, label, avatar_data, about').single();
     if (error) throw error;
     return res.json({ ok: true, user: sanitizeUser(data) });
   }
@@ -775,7 +813,7 @@ app.get('/api/chat/unread', async (req, res) => {
   const userIds = [...new Set(messages.map((message) => String(message.from_id)).filter((id) => id !== String(userId)))];
   let users;
   if (supabaseEnabled && userIds.length) {
-    const { data, error } = await supabase.from('users').select('id, label, avatar_data').in('id', userIds);
+    const { data, error } = await supabase.from('users').select('id, label, avatar_data, about').in('id', userIds);
     if (error) throw error;
     users = (data || []).map(sanitizeUser);
   } else {
@@ -803,8 +841,8 @@ app.get('/api/chat', async (req, res) => {
 
   if (supabaseEnabled) {
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, created_at').eq('from_id', me).eq('to_id', other),
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, created_at').eq('from_id', other).eq('to_id', me),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', me).eq('to_id', other),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', other).eq('to_id', me),
     ]);
     if (sentError || receivedError) throw sentError || receivedError;
     const incoming = received || [];
@@ -911,6 +949,53 @@ app.post('/api/chat', async (req, res) => {
     console.error('Failed to send chat message:', error);
     return res.status(500).json({ error: 'Unable to send message.' });
   }
+});
+
+app.patch('/api/chat/:id', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const messageId = String(req.params.id || '');
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (!userId || !messageId || !text || text.length > 4000) {
+    return res.status(400).json({ error: 'Enter a message between 1 and 4000 characters.' });
+  }
+
+  await storeReady;
+  const editedAt = new Date().toISOString();
+  let message = null;
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages')
+      .update({ text, edited_at: editedAt })
+      .eq('id', messageId)
+      .eq('from_id', String(userId))
+      .eq('type', 'text')
+      .select('id, from_id, to_id, text, type, created_at, edited_at')
+      .maybeSingle();
+    if (error) throw error;
+    message = data;
+  } else if (firebaseEnabled && firebaseDb) {
+    const ref = firebaseDb.collection('messages').doc(messageId);
+    const snapshot = await ref.get();
+    const storedMessage = snapshot.data();
+    if (snapshot.exists && storedMessage.fromId === String(userId) && (storedMessage.type || 'text') === 'text') {
+      await ref.update({ text, editedAt });
+      message = { ...storedMessage, text, editedAt };
+      invalidateFirestoreCache();
+    }
+  } else {
+    const storedMessage = memoryStore.messages.find((item) =>
+      item.id === messageId && item.fromId === String(userId) && (item.type || 'text') === 'text'
+    );
+    if (storedMessage) {
+      storedMessage.text = text;
+      storedMessage.editedAt = editedAt;
+      message = storedMessage;
+      persistStore();
+    }
+  }
+
+  if (!message) return res.status(404).json({ error: 'Message not found or cannot be edited.' });
+  publishChatMessage(message);
+  res.json({ ok: true, message: supabaseEnabled ? toAppMessage(message) : message });
 });
 
 app.delete('/api/chat/:id', async (req, res) => {
