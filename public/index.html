@@ -113,11 +113,10 @@
           <form id="registerForm" class="auth-form">
             <div class="input-group">
               <label class="block-label" for="registerId" data-i18n="labelYourUserId">Ваш user id</label>
-              <input id="registerId" name="id" data-i18n-ph="phRegisterId" placeholder="Например: user-42" required minlength="3" maxlength="20" pattern="(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{3,20}" autocomplete="username" aria-describedby="userIdRules" />
+              <input id="registerId" name="id" data-i18n-ph="phRegisterId" placeholder="Например: user42" required minlength="3" maxlength="20" pattern="[A-Za-z0-9]{3,20}" autocomplete="username" aria-describedby="userIdRules" />
               <ul id="userIdRules" class="user-id-rules" hidden aria-live="polite">
                 <li data-user-id-rule="allowed" data-i18n="userIdRuleAllowed">Только латинские буквы</li>
                 <li data-user-id-rule="length" data-i18n="userIdRuleLength">От 3 до 20 символов</li>
-                <li data-user-id-rule="digits" data-i18n="userIdRuleDigits">Есть цифры</li>
               </ul>
             </div>
 
@@ -128,7 +127,13 @@
 
             <div class="input-group">
               <label class="block-label" for="registerPassword" data-i18n="labelPassword">Пароль</label>
-              <input id="registerPassword" name="password" type="password" data-i18n-ph="phRegisterPassword" placeholder="Придумайте пароль" required autocomplete="new-password" />
+              <input id="registerPassword" name="password" type="password" data-i18n-ph="phRegisterPassword" placeholder="Придумайте пароль" required minlength="6" pattern="(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]+" autocomplete="new-password" aria-describedby="passwordRules" />
+              <ul id="passwordRules" class="user-id-rules" hidden aria-live="polite">
+                <li data-password-rule="allowed" data-i18n="passwordRuleAllowed">Только латинские буквы и цифры</li>
+                <li data-password-rule="length" data-i18n="passwordRuleLength">Не менее 6 символов</li>
+                <li data-password-rule="letters" data-i18n="passwordRuleLetters">Есть латинские буквы</li>
+                <li data-password-rule="digits" data-i18n="passwordRuleDigits">Есть цифры</li>
+              </ul>
             </div>
 
             <button type="submit" class="primary-btn" data-i18n="btnRegister">Зарегистрироваться</button>
