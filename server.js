@@ -1,14 +1,17 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-const { randomUUID } = require('crypto');
+const { randomUUID, randomBytes, createHmac, timingSafeEqual } = require('crypto');
 const cookieParser = require('cookie-parser');
 const admin = require('firebase-admin');
 const { createClient } = require('@supabase/supabase-js');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = 'Daniil011235!';
+const ADMIN_PASSWORD = String(process.env.ADMIN_PASSWORD || '');
+const ADMIN_SESSION_SECRET = String(process.env.ADMIN_SESSION_SECRET || '');
+const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 const storageMode = String(process.env.STORAGE_MODE || 'firebase').toLowerCase();
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
 const dataFile = path.join(dataDir, 'store.json');
@@ -23,6 +26,53 @@ let supabase = null;
 let supabaseEnabled = false;
 const userEventClients = new Map();
 const typingEventThrottle = new Map();
+
+// --- Password hashing (bcrypt) -------------------------------------------
+// bcrypt stores a salted hash; the original password cannot be recovered
+// from it. A cost factor of 10 is a good default balance of speed/security.
+const BCRYPT_ROUNDS = Math.min(15, Math.max(8, Number(process.env.BCRYPT_ROUNDS) || 10));
+
+function isBcryptHash(value) {
+  return /^\$2[aby]\$\d{2}\$/.test(String(value || ''));
+}
+
+async function hashPassword(plain) {
+  return bcrypt.hash(String(plain), BCRYPT_ROUNDS);
+}
+
+// Accepts both bcrypt hashes (new) and legacy plaintext (pre-migration),
+// so existing users keep working while passwords are upgraded lazily.
+async function verifyPassword(plain, stored) {
+  const storedValue = String(stored || '');
+  if (!storedValue) return false;
+  if (isBcryptHash(storedValue)) {
+    return bcrypt.compare(String(plain), storedValue);
+  }
+  return storedValue === String(plain);
+}
+
+// Persist an already-computed password hash to whichever backend is active.
+async function storePasswordHash(userId, passwordHash) {
+  const id = String(userId);
+  const hash = String(passwordHash || '');
+
+  if (supabaseEnabled) {
+    const { error } = await supabase.from('users').update({ password: hash }).eq('id', id);
+    if (error) throw error;
+    return;
+  }
+  if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('users').doc(id).set({ password: hash }, { merge: true });
+    invalidateFirestoreCache();
+    return;
+  }
+  const user = memoryStore.users.find((entry) => entry.id === id);
+  if (user) {
+    user.password = hash;
+    persistStore();
+  }
+}
+// --------------------------------------------------------------------------
 
 function publishUserEvent(userId, eventName, payload) {
   const clients = userEventClients.get(String(userId));
@@ -571,10 +621,12 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ error: 'Invalid user ID. Use 3-20 Latin letters and digits, including at least one of each.' });
   }
 
+  const passwordHash = await hashPassword(password);
+
   await storeReady;
   if (supabaseEnabled) {
     const { error } = await supabase.from('users').insert({
-      id: String(id), label: String(label), password: String(password),
+      id: String(id), label: String(label), password: passwordHash,
     });
     if (error) {
       if (error.code === '23505') {
@@ -585,7 +637,7 @@ app.post('/api/auth/register', async (req, res) => {
   } else if (firebaseEnabled && firebaseDb) {
     try {
       await firebaseDb.collection('users').doc(String(id)).create({
-        id: String(id), label: String(label), password: String(password), avatarData: null,
+        id: String(id), label: String(label), password: passwordHash, avatarData: null,
       });
       invalidateFirestoreCache();
     } catch (error) {
@@ -599,7 +651,7 @@ app.post('/api/auth/register', async (req, res) => {
     if (exists) {
       return res.status(409).json({ error: 'Пользователь с таким user-id уже зарегистрирован' });
     }
-    ensureUser(String(id), String(label), String(password));
+    ensureUser(String(id), String(label), passwordHash);
   }
   res.cookie('sessionUserId', String(id), {
     httpOnly: true,
@@ -622,8 +674,20 @@ app.post('/api/auth/login', async (req, res) => {
     : firebaseEnabled && firebaseDb
     ? (await firebaseDb.collection('users').doc(String(id)).get()).data()
     : memoryStore.users.find((entry) => entry.id === String(id));
-  if (!user || user.password !== String(password)) {
+  const storedPassword = String(user?.password || '');
+  const passwordOk = await verifyPassword(password, storedPassword);
+  if (!user || !passwordOk) {
     return res.status(401).json({ error: 'Invalid user id or password.' });
+  }
+
+  // Lazy migration: the login password is correct, so if it is still stored
+  // as legacy plaintext, replace it with a bcrypt hash right now.
+  if (storedPassword && !isBcryptHash(storedPassword)) {
+    try {
+      await storePasswordHash(user.id, await hashPassword(password));
+    } catch (error) {
+      console.warn('Failed to upgrade legacy password to a hash:', error.message);
+    }
   }
 
   res.cookie('sessionUserId', String(id), {
@@ -691,50 +755,97 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 function requireAdmin(req, res, next) {
-  const adminCookie = req.cookies?.adminSession;
-  if (adminCookie !== '1') {
+  if (!isValidAdminSession(req.cookies?.adminSession)) {
     return res.status(401).json({ error: 'Admin access required.' });
   }
   next();
 }
 
+function createAdminSession() {
+  const payload = `${Date.now()}.${randomBytes(32).toString('hex')}`;
+  const signature = createHmac('sha256', ADMIN_SESSION_SECRET).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function isValidAdminSession(token) {
+  if (!ADMIN_PASSWORD || ADMIN_SESSION_SECRET.length < 32 || typeof token !== 'string') return false;
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  const issuedAt = Number(parts[0]);
+  if (!Number.isSafeInteger(issuedAt) || issuedAt > Date.now() || Date.now() - issuedAt > ADMIN_SESSION_TTL_MS) {
+    return false;
+  }
+
+  const payload = `${parts[0]}.${parts[1]}`;
+  const expected = createHmac('sha256', ADMIN_SESSION_SECRET).update(payload).digest();
+  const provided = Buffer.from(parts[2], 'base64url');
+  return provided.length === expected.length && timingSafeEqual(provided, expected);
+}
+
+function adminCookieOptions(includeLifetime = true) {
+  const options = {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+  };
+  if (includeLifetime) options.maxAge = ADMIN_SESSION_TTL_MS;
+  return options;
+}
+
 app.post('/api/admin/login', (req, res) => {
+  if (!ADMIN_PASSWORD || ADMIN_SESSION_SECRET.length < 32) {
+    console.error('Admin login is disabled: configure ADMIN_PASSWORD and a 32-character ADMIN_SESSION_SECRET.');
+    return res.status(503).json({ error: 'Admin access is not configured.' });
+  }
   const { password } = req.body || {};
   if (String(password) !== ADMIN_PASSWORD) {
     return res.status(401).json({ error: 'Invalid admin password.' });
   }
 
-  res.cookie('adminSession', '1', {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.cookie('adminSession', createAdminSession(), adminCookieOptions());
 
   res.json({ ok: true });
 });
 
 app.post('/api/admin/logout', (req, res) => {
-  res.clearCookie('adminSession', { path: '/' });
+  res.clearCookie('adminSession', adminCookieOptions(false));
   res.json({ ok: true });
 });
 
 app.get('/api/admin/me', (req, res) => {
-  const adminCookie = req.cookies?.adminSession;
-  res.json({ admin: adminCookie === '1' });
+  res.json({ admin: isValidAdminSession(req.cookies?.adminSession) });
 });
 
 app.get('/api/admin/users', requireAdmin, async (req, res) => {
   if (supabaseEnabled) {
-    const { data, error } = await supabase.from('users').select('id, label, password');
+    const { data, error } = await supabase.from('users').select('id, label');
     if (error) throw error;
     return res.json({ users: data || [] });
   }
-  res.json({
-    users: memoryStore.users.map((user) => ({
-      ...sanitizeUser(user),
-      password: String(user.password || ''),
-    })),
-  });
+  res.json({ users: memoryStore.users.map((user) => sanitizeUser(user)) });
+});
+
+app.post('/api/admin/users/:id/reset-password', requireAdmin, async (req, res) => {
+  const id = String(req.params.id || '');
+  const newPassword = String(req.body?.password || '');
+  if (!id) {
+    return res.status(400).json({ error: 'Need user id.' });
+  }
+  if (!newPassword || newPassword.length < 4) {
+    return res.status(400).json({ error: 'Введите новый пароль — минимум 4 символа.' });
+  }
+
+  await storeReady;
+  const user = supabaseEnabled
+    ? (await supabase.from('users').select('id').eq('id', id).maybeSingle()).data
+    : memoryStore.users.find((entry) => entry.id === id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  await storePasswordHash(id, await hashPassword(newPassword));
+  res.json({ ok: true, userId: id });
 });
 
 app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
@@ -1234,4 +1345,7 @@ app.post('/api/calls/signal', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Messenger running on http://localhost:${PORT}`);
+  if (!ADMIN_PASSWORD || ADMIN_SESSION_SECRET.length < 32) {
+    console.warn('Admin panel is disabled until ADMIN_PASSWORD and an ADMIN_SESSION_SECRET of at least 32 characters are configured.');
+  }
 });

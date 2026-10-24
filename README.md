@@ -35,9 +35,10 @@ npm start
 ```
 
 4. Порт задайте через переменную окружения `PORT`.
-5. Для хранения в Firestore задайте переменную окружения `FIREBASE_SERVICE_ACCOUNT` со значением содержимого JSON-ключа Firebase Service Account.
-6. Чтобы полностью отказаться от Firebase, задайте `STORAGE_MODE=local` и подключите постоянный Volume Railway к папке, указанной в `DATA_DIR` (например, `/data`). Тогда добавьте также `DATA_DIR=/data`.
-7. Без Firebase и без постоянного Volume данные сохраняются только до следующего перезапуска Railway.
+5. Задайте секреты `ADMIN_PASSWORD` и `ADMIN_SESSION_SECRET`. Сгенерировать второй можно командой `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. Без обоих секретов админ-панель будет отключена.
+6. Для хранения в Firestore задайте переменную окружения `FIREBASE_SERVICE_ACCOUNT` со значением содержимого JSON-ключа Firebase Service Account.
+7. Чтобы полностью отказаться от Firebase, задайте `STORAGE_MODE=local` и подключите постоянный Volume Railway к папке, указанной в `DATA_DIR` (например, `/data`). Тогда добавьте также `DATA_DIR=/data`.
+8. Без Firebase и без постоянного Volume данные сохраняются только до следующего перезапуска Railway.
 
 ## Firebase
 - В Firebase Console создайте проект и Service Account.
@@ -45,6 +46,7 @@ npm start
 - В Railway откройте Project → Variables и добавьте переменную `FIREBASE_SERVICE_ACCOUNT`.
 - Значение переменной — это именно текст JSON, который вы скачали из Firebase.
 - После этого сервер будет читать/записывать пользователей и чаты через Firestore.
+- Пароли пользователей хранятся в виде bcrypt-хешей. Старые пароли в открытом виде автоматически хешируются после успешного входа.
 - Сервер кэширует чтения Firestore на 15 секунд. Интервалы можно изменить переменной `FIRESTORE_CACHE_MS`.
 
 ## Supabase

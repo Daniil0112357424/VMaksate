@@ -3,7 +3,7 @@
     {
       "id": "user-42",
       "label": "Иван",
-      "password": "123"
+      "password": "$2b$10$YgGTtYwh.tR0hqC9TXY4z.7xPQWzXoQW9xLrboy82W7.NvZtDAyO."
     },
     {
       "id": "demo1",

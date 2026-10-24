@@ -364,10 +364,24 @@ button:active {
   font-size: 13px;
 }
 
-.admin-user-card .admin-user-password {
-  color: var(--text-primary);
+.admin-user-card .admin-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.admin-reset-btn {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  padding: 8px 14px;
   font-size: 13px;
-  word-break: break-all;
+}
+
+.admin-reset-btn:hover {
+  background: rgba(59, 130, 246, 0.3);
+  color: white;
 }
 
 .admin-delete-btn {
