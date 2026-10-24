@@ -58,9 +58,11 @@
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             </button>
             <div id="partnerAvatar" class="partner-avatar hidden">?</div>
-            <div>
+            <div class="chat-partner-details">
               <div class="caption" data-i18n="dialogCaption">Диалог</div>
               <strong id="chatPartner" data-i18n="selectPartnerPlaceholder">Выберите собеседника</strong>
+              <span id="partnerAbout" class="partner-about"></span>
+              <span id="typingIndicator" class="typing-indicator" aria-live="polite"></span>
             </div>
           </div>
           <div class="call-actions">
@@ -106,6 +108,8 @@
         <label class="profile-avatar-picker" for="profileImageInput"><span id="profileAvatarPreview">?</span><input id="profileImageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></label>
         <label class="block-label" for="profileNameInput" data-i18n="profileNameLabel">Имя</label>
         <input id="profileNameInput" maxlength="80" required />
+        <label class="block-label" for="profileAboutInput" data-i18n="profileAboutLabel">О себе</label>
+        <textarea id="profileAboutInput" maxlength="160" rows="3" data-i18n-ph="profileAboutPlaceholder" placeholder="Расскажите немного о себе"></textarea>
         <div class="profile-user-id"><span data-i18n="profileUserIdLabel">User ID</span>: <span id="profileUserId"></span></div>
         <button class="primary-btn" type="submit" data-i18n="saveProfileBtn">Сохранить</button>
       </form>

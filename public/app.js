@@ -32,6 +32,7 @@ const translations = {
     phSearch: 'Ищите по user id или имени',
     searchBtn: 'Найти',
     dialogCaption: 'Диалог',
+    typingIndicator: 'печатает…',
     selectPartnerPlaceholder: 'Выберите собеседника',
     phMessage: 'Напишите сообщение...',
     sendBtn: 'Отправить',
@@ -40,9 +41,12 @@ const translations = {
     callIncoming: 'Входящий звонок...', callCalling: 'Звоним...', callConnecting: 'Подключение...', callInProgress: 'В звонке', callDeclined: 'Звонок отклонён', callBusy: 'Пользователь уже разговаривает',
     callMediaError: 'Не удалось получить доступ к микрофону или камере.', callUnsupported: 'Звонки не поддерживаются этим браузером.',
     profileBtn: 'Профиль', profileTitle: 'Профиль', profileNameLabel: 'Имя', profileUserIdLabel: 'User ID', saveProfileBtn: 'Сохранить', attachPhotoTitle: 'Прикрепить фото',
+    profileAboutLabel: 'О себе', profileAboutPlaceholder: 'Расскажите немного о себе',
     errImageTooLarge: 'Фото должно быть не больше 5 МБ.',
     callAudio: 'Аудиозвонок', callVideo: 'Видеозвонок', callMissed: 'Пропущенный {mode}', callCompleted: '{mode}', callDeclinedLog: 'Отклонённый {mode}',
     messageSent: 'Отправлено', messageDelivered: 'Доставлено', messageRead: 'Прочитано',
+    editMessage: 'Изменить', saveEdit: 'Сохранить', cancelEdit: 'Отмена', messageEdited: 'изменено',
+    errEditMessage: 'Не удалось изменить сообщение.',
     previewYou: 'Вы', previewImage: 'Фото', previewSticker: 'Стикер', previewCall: 'Звонок',
     deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
     reactionHeart: 'Сердце', reactionLike: 'Нравится', reactionPoop: 'Какашка',
@@ -97,6 +101,7 @@ const translations = {
     phSearch: 'Search by User ID or name',
     searchBtn: 'Search',
     dialogCaption: 'Conversation',
+    typingIndicator: 'typing…',
     selectPartnerPlaceholder: 'Select a conversation',
     phMessage: 'Type a message...',
     sendBtn: 'Send',
@@ -105,9 +110,12 @@ const translations = {
     callIncoming: 'Incoming call...', callCalling: 'Calling...', callConnecting: 'Connecting...', callInProgress: 'In call', callDeclined: 'Call declined', callBusy: 'User is already in a call',
     callMediaError: 'Unable to access the microphone or camera.', callUnsupported: 'Calls are not supported by this browser.',
     profileBtn: 'Profile', profileTitle: 'Profile', profileNameLabel: 'Name', profileUserIdLabel: 'User ID', saveProfileBtn: 'Save', attachPhotoTitle: 'Attach photo',
+    profileAboutLabel: 'About', profileAboutPlaceholder: 'Tell a little about yourself',
     errImageTooLarge: 'Image must be 5 MB or smaller.',
     callAudio: 'Audio call', callVideo: 'Video call', callMissed: 'Missed {mode}', callCompleted: '{mode}', callDeclinedLog: 'Declined {mode}',
     messageSent: 'Sent', messageDelivered: 'Delivered', messageRead: 'Read',
+    editMessage: 'Edit', saveEdit: 'Save', cancelEdit: 'Cancel', messageEdited: 'edited',
+    errEditMessage: 'Unable to edit message.',
     previewYou: 'You', previewImage: 'Photo', previewSticker: 'Sticker', previewCall: 'Call',
     deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
     reactionHeart: 'Heart', reactionLike: 'Like', reactionPoop: 'Poop',
@@ -162,6 +170,7 @@ const translations = {
     phSearch: 'Buscar por ID de usuario o nombre',
     searchBtn: 'Buscar',
     dialogCaption: 'Diálogo',
+    typingIndicator: 'escribiendo…',
     selectPartnerPlaceholder: 'Seleccione un interlocutor',
     phMessage: 'Escriba un mensaje...',
     sendBtn: 'Enviar',
@@ -170,9 +179,12 @@ const translations = {
     callIncoming: 'Llamada entrante...', callCalling: 'Llamando...', callConnecting: 'Conectando...', callInProgress: 'En llamada', callDeclined: 'Llamada rechazada', callBusy: 'El usuario ya está en una llamada',
     callMediaError: 'No se pudo acceder al micrófono o la cámara.', callUnsupported: 'Este navegador no admite llamadas.',
     profileBtn: 'Perfil', profileTitle: 'Perfil', profileNameLabel: 'Nombre', profileUserIdLabel: 'ID de usuario', saveProfileBtn: 'Guardar', attachPhotoTitle: 'Adjuntar foto',
+    profileAboutLabel: 'Acerca de mí', profileAboutPlaceholder: 'Cuéntanos un poco sobre ti',
     errImageTooLarge: 'La imagen debe tener 5 MB o menos.',
     callAudio: 'Llamada de audio', callVideo: 'Videollamada', callMissed: 'Llamada perdida: {mode}', callCompleted: '{mode}', callDeclinedLog: '{mode} rechazada',
     messageSent: 'Enviado', messageDelivered: 'Entregado', messageRead: 'Leído',
+    editMessage: 'Editar', saveEdit: 'Guardar', cancelEdit: 'Cancelar', messageEdited: 'editado',
+    errEditMessage: 'No se pudo editar el mensaje.',
     previewYou: 'Tú', previewImage: 'Foto', previewSticker: 'Sticker', previewCall: 'Llamada',
     deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
     reactionHeart: 'Corazón', reactionLike: 'Me gusta', reactionPoop: 'Caca',
@@ -306,6 +318,8 @@ const searchBtn = document.getElementById('searchBtn');
 const userList = document.getElementById('userList');
 const messagesBox = document.getElementById('messages');
 const chatPartner = document.getElementById('chatPartner');
+const partnerAbout = document.getElementById('partnerAbout');
+const typingIndicator = document.getElementById('typingIndicator');
 const partnerAvatar = document.getElementById('partnerAvatar');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
@@ -335,12 +349,17 @@ const profileBtn = document.getElementById('profileBtn');
 const profileModal = document.getElementById('profileModal');
 const profileForm = document.getElementById('profileForm');
 const profileNameInput = document.getElementById('profileNameInput');
+const profileAboutInput = document.getElementById('profileAboutInput');
 const profileUserId = document.getElementById('profileUserId');
 const profileImageInput = document.getElementById('profileImageInput');
 const profileAvatarPreview = document.getElementById('profileAvatarPreview');
 const closeProfileBtn = document.getElementById('closeProfileBtn');
 let pendingMessageImage = null;
 let pendingAvatarImage = null;
+let typingIdleTimeout = null;
+let typingIndicatorTimeout = null;
+let lastTypingSentAt = 0;
+let isTypingSent = false;
 
 function renderCurrentUserBadge() {
   if (!currentUserBadge) return;
@@ -360,14 +379,25 @@ function renderCurrentUserBadge() {
 
 function updateChatHeader(user) {
   if (!chatPartner) return;
+  clearTimeout(typingIndicatorTimeout);
+  typingIndicator?.classList.remove('visible');
   if (!user) {
     chatPartner.textContent = t('selectPartnerPlaceholder');
+    if (partnerAbout) {
+      partnerAbout.textContent = '';
+      partnerAbout.classList.add('hidden');
+    }
     if (partnerAvatar) partnerAvatar.classList.add('hidden');
     if (audioCallBtn) audioCallBtn.disabled = true;
     if (videoCallBtn) videoCallBtn.disabled = true;
     return;
   }
   chatPartner.textContent = user.label;
+  if (partnerAbout) {
+    partnerAbout.textContent = user.about || '';
+    partnerAbout.title = user.about || '';
+    partnerAbout.classList.toggle('hidden', !user.about);
+  }
   if (partnerAvatar) {
     partnerAvatar.classList.remove('hidden');
     partnerAvatar.style.background = user.avatarData ? `url("${user.avatarData}") center / cover` : getAvatarBg(user.label || user.id);
@@ -377,6 +407,36 @@ function updateChatHeader(user) {
   const callsUnavailable = !window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia;
   if (audioCallBtn) audioCallBtn.disabled = callsUnavailable;
   if (videoCallBtn) videoCallBtn.disabled = callsUnavailable;
+}
+
+function sendTypingState(isTyping) {
+  if (!currentUser || !selectedPartner) return;
+  if (isTyping) {
+    if (Date.now() - lastTypingSentAt < 1500) return;
+    lastTypingSentAt = Date.now();
+  } else if (!isTypingSent) {
+    return;
+  }
+
+  isTypingSent = isTyping;
+  fetch('/api/chat/typing', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ toId: selectedPartner.id, isTyping }),
+    keepalive: !isTyping,
+  }).catch((error) => console.error('Unable to send typing status:', error));
+}
+
+function receiveTypingState(event) {
+  if (!selectedPartner || event.fromId !== selectedPartner.id || !typingIndicator) return;
+  clearTimeout(typingIndicatorTimeout);
+  if (!event.isTyping) {
+    typingIndicator.classList.remove('visible');
+    return;
+  }
+  typingIndicator.textContent = t('typingIndicator');
+  typingIndicator.classList.add('visible');
+  typingIndicatorTimeout = setTimeout(() => typingIndicator.classList.remove('visible'), 3500);
 }
 
 function applyLanguage(lang) {
@@ -574,7 +634,10 @@ function renderUsers(users) {
     item.appendChild(meta);
 
     item.addEventListener('click', () => {
+      clearTimeout(typingIdleTimeout);
+      sendTypingState(false);
       selectedPartner = user;
+      lastTypingSentAt = 0;
       updateChatHeader(user);
       document.querySelectorAll('.user-item').forEach((el) => el.classList.remove('active'));
       item.classList.add('active');
@@ -663,6 +726,8 @@ function getMessagesSignature(messages) {
     message.id,
     message.deliveredAt,
     message.readAt,
+    message.editedAt,
+    message.text,
     message.reactions,
   ]));
 }
@@ -720,6 +785,7 @@ async function loadMessages() {
   unreadUsers.delete(partnerId);
 
   if (requestNumber !== latestMessagesRequest || !selectedPartner || selectedPartner.id !== partnerId) return;
+  if (messagesBox.querySelector('.message-edit-form')) return;
   const signature = getMessagesSignature(messages);
   if (renderedMessagesPartnerId === partnerId && renderedMessagesSignature === signature) return;
   const wasAtBottom = messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight < 40;
@@ -773,11 +839,13 @@ async function loadMessages() {
       div.appendChild(sticker);
     }
 
+    let messageTextElement = null;
     if (item.text && item.type !== 'sticker') {
       const text = document.createElement('div');
       text.className = 'message-text';
       text.textContent = item.text;
       div.appendChild(text);
+      messageTextElement = text;
     }
 
     if (item.imageData && item.type !== 'sticker') {
@@ -792,6 +860,12 @@ async function loadMessages() {
       const time = document.createElement('div');
       time.className = 'message-time';
       time.textContent = formatTime(item.createdAt);
+      if (item.editedAt) {
+        const edited = document.createElement('span');
+        edited.className = 'message-edited';
+        edited.textContent = t('messageEdited');
+        time.appendChild(edited);
+      }
       div.appendChild(time);
     }
 
@@ -894,6 +968,67 @@ async function loadMessages() {
     });
 
     if (isMe && item.type !== 'call') {
+      if (item.type === 'text' && messageTextElement) {
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.className = 'message-edit-btn';
+        editButton.textContent = t('editMessage');
+        editButton.addEventListener('click', () => {
+          actionsMenu.classList.add('hidden');
+          actionsToggle.setAttribute('aria-expanded', 'false');
+
+          const form = document.createElement('form');
+          form.className = 'message-edit-form';
+          const textarea = document.createElement('textarea');
+          textarea.className = 'message-edit-input';
+          textarea.value = item.text;
+          textarea.maxLength = 4000;
+          textarea.setAttribute('aria-label', t('editMessage'));
+          const controls = document.createElement('div');
+          controls.className = 'message-edit-controls';
+          const saveButton = document.createElement('button');
+          saveButton.type = 'submit';
+          saveButton.className = 'message-edit-save';
+          saveButton.textContent = t('saveEdit');
+          const cancelButton = document.createElement('button');
+          cancelButton.type = 'button';
+          cancelButton.className = 'message-edit-cancel';
+          cancelButton.textContent = t('cancelEdit');
+          cancelButton.addEventListener('click', () => {
+            form.replaceWith(messageTextElement);
+            renderedMessagesSignature = '';
+            loadMessages().catch((error) => console.error('Unable to reload chat after cancelling edit:', error));
+          });
+          controls.append(saveButton, cancelButton);
+          form.append(textarea, controls);
+          messageTextElement.replaceWith(form);
+          textarea.focus();
+          textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const updatedText = textarea.value.trim();
+            if (!updatedText || updatedText.length > 4000) return;
+            saveButton.disabled = true;
+            try {
+              const response = await fetch(`/api/chat/${encodeURIComponent(item.id)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: updatedText }),
+              });
+              const result = await response.json();
+              if (!response.ok) throw new Error(result.error || t('errEditMessage'));
+              form.remove();
+              renderedMessagesSignature = '';
+              await loadMessages();
+            } catch (error) {
+              alert(error.message || t('errEditMessage'));
+              saveButton.disabled = false;
+            }
+          });
+        });
+        actionsMenu.appendChild(editButton);
+      }
+
       const status = document.createElement('div');
       status.className = 'message-delivery-status';
       const statusKey = item.readAt ? 'messageRead'
@@ -946,6 +1081,8 @@ async function sendMessage() {
   const text = messageInput.value.trim();
   if ((!text && !pendingMessageImage) || isSendingMessage) return;
 
+  clearTimeout(typingIdleTimeout);
+  sendTypingState(false);
   isSendingMessage = true;
   sendBtn.disabled = true;
   try {
@@ -991,6 +1128,7 @@ function openProfile() {
   if (!currentUser || !profileModal) return;
   pendingAvatarImage = currentUser.avatarData || null;
   profileNameInput.value = currentUser.label;
+  profileAboutInput.value = currentUser.about || '';
   profileUserId.textContent = currentUser.id;
   profileAvatarPreview.textContent = currentUser.label.charAt(0).toUpperCase();
   profileAvatarPreview.parentElement.style.backgroundImage = pendingAvatarImage ? `url("${pendingAvatarImage}")` : '';
@@ -1004,12 +1142,18 @@ async function saveProfile(event) {
   event.preventDefault();
   const response = await fetch('/api/auth/profile', {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ label: profileNameInput.value.trim(), avatarData: pendingAvatarImage }),
+    body: JSON.stringify({
+      label: profileNameInput.value.trim(),
+      about: profileAboutInput.value.trim(),
+      avatarData: pendingAvatarImage,
+    }),
   });
   const data = await response.json();
   if (!response.ok) return alert(data.error || 'Не удалось сохранить профиль.');
   currentUser = data.user;
   renderCurrentUserBadge();
+  const currentUserEntry = currentUserList.find((user) => user.id === currentUser.id);
+  if (currentUserEntry) Object.assign(currentUserEntry, currentUser);
   if (selectedPartner?.id === currentUser.id) updateChatHeader(currentUser);
   closeProfile();
   searchUsers();
@@ -1261,6 +1405,13 @@ function startRealtimeEvents() {
       console.error('Unable to process realtime chat event:', error);
     }
   });
+  events.addEventListener('chat-typing', (event) => {
+    try {
+      receiveTypingState(JSON.parse(event.data));
+    } catch (error) {
+      console.error('Unable to process typing status:', error);
+    }
+  });
   events.addEventListener('call-signal', (event) => {
     try {
       const signal = JSON.parse(event.data);
@@ -1488,8 +1639,19 @@ if (searchInput && userList && messagesBox) {
     }
   });
   sendBtn.addEventListener('click', sendMessage);
+  messageInput.addEventListener('input', () => {
+    clearTimeout(typingIdleTimeout);
+    if (!messageInput.value.trim()) {
+      sendTypingState(false);
+      return;
+    }
+    sendTypingState(true);
+    typingIdleTimeout = setTimeout(() => sendTypingState(false), 2200);
+  });
   messageInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
+      clearTimeout(typingIdleTimeout);
+      sendTypingState(false);
       sendMessage();
     }
   });

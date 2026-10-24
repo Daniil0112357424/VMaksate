@@ -6,6 +6,7 @@ create table if not exists public.users (
 );
 
 alter table public.users add column if not exists avatar_data text;
+alter table public.users add column if not exists about text not null default '';
 
 create table if not exists public.messages (
   id uuid primary key,
@@ -24,6 +25,7 @@ alter table public.messages add column if not exists sticker_id text;
 alter table public.messages add column if not exists reactions jsonb not null default '{}'::jsonb;
 alter table public.messages add column if not exists delivered_at timestamptz;
 alter table public.messages add column if not exists read_at timestamptz;
+alter table public.messages add column if not exists edited_at timestamptz;
 
 alter table public.messages drop constraint if exists messages_text_check;
 alter table public.messages add constraint messages_text_check
