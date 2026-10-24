@@ -39,6 +39,14 @@
                   <option value="es">ES</option>
                 </select>
               </div>
+              <button class="icon-btn sound-toggle" type="button" data-sound-toggle data-i18n-title="soundToggle" title="Звуки уведомлений" aria-label="Звуки уведомлений" aria-pressed="true">
+                <svg class="icon-sound-on" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M11 5 6 9H2v6h4l5 4V5z"></path><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 5.5a9.5 9.5 0 0 1 0 13"></path>
+                </svg>
+                <svg class="icon-sound-off" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M11 5 6 9H2v6h4l5 4V5z"></path><path d="m16 9 5 5M21 9l-5 5"></path>
+                </svg>
+              </button>
               <button class="icon-btn theme-toggle" type="button" data-theme-toggle data-i18n-title="themeToggle" aria-label="Сменить тему" aria-pressed="false">
                 <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -93,6 +101,7 @@
             <div class="chat-partner-details">
               <div class="caption" data-i18n="dialogCaption">Диалог</div>
               <strong id="chatPartner" data-i18n="selectPartnerPlaceholder">Выберите собеседника</strong>
+              <span id="partnerPresence" class="partner-presence" data-i18n-title="dialogCaption"></span>
               <span id="partnerAbout" class="partner-about"></span>
               <span id="typingIndicator" class="typing-indicator" aria-live="polite"></span>
             </div>
@@ -136,7 +145,33 @@
           <span id="attachmentPreviewName"></span>
           <button id="removeAttachmentBtn" type="button" aria-label="Удалить вложение">×</button>
         </div>
+        <div id="recordingBar" class="recording-bar hidden">
+          <span class="recording-dot" aria-hidden="true"></span>
+          <span id="recordingTime" aria-live="off">0:00</span>
+          <button id="voiceCancelBtn" class="recording-cancel" type="button" data-i18n-title="voiceCancel" title="Отменить запись" aria-label="Отменить запись">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+          <button id="voiceStopBtn" class="recording-stop" type="button" data-i18n-title="voiceStop" title="Отправить голосовое" aria-label="Отправить голосовое">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+        <div id="replyBar" class="reply-bar hidden">
+          <svg class="reply-bar-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+          <div class="reply-bar-content">
+            <span id="replyBarName"></span>
+            <span id="replyBarText"></span>
+          </div>
+          <button id="replyCancelBtn" type="button" data-i18n-title="closeBtnLabel" title="Закрыть" aria-label="Закрыть">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
         <div class="composer">
+          <div class="sticker-menu-wrap">
+            <button id="emojiBtn" class="attachment-btn" type="button" data-i18n-title="emojiTitle" title="Эмодзи" aria-label="Эмодзи">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+            </button>
+            <div id="emojiMenu" class="emoji-menu hidden"></div>
+          </div>
           <label class="attachment-btn" data-i18n-title="attachPhotoTitle" title="Прикрепить фото" aria-label="Прикрепить фото">
             <input id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
             <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
@@ -148,6 +183,9 @@
             <div id="stickerMenu" class="sticker-menu hidden"><button id="etoRealnoSticker" type="button" title="Это реально"><img src="/stickers/eto-realno.jpg" alt="Это реально" /></button></div>
           </div>
           <input id="messageInput" data-i18n-ph="phMessage" placeholder="Напишите сообщение..." autocomplete="off" />
+          <button id="voiceBtn" class="attachment-btn voice-btn" type="button" data-i18n-title="voiceRecordStart" title="Голосовое сообщение" aria-label="Голосовое сообщение">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 22h8"/></svg>
+          </button>
           <button id="sendBtn" class="send-btn" type="button">
             <span class="send-label" data-i18n="sendBtn">Отправить</span>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
@@ -174,6 +212,17 @@
         <label class="block-label" for="profileAboutInput" data-i18n="profileAboutLabel">О себе</label>
         <textarea id="profileAboutInput" maxlength="160" rows="3" data-i18n-ph="profileAboutPlaceholder" placeholder="Расскажите немного о себе"></textarea>
         <div class="profile-user-id"><span data-i18n="profileUserIdLabel">User ID</span><span id="profileUserId"></span></div>
+        <details class="password-change">
+          <summary data-i18n="passwordChangeTitle">Смена пароля</summary>
+          <label class="block-label" for="profileCurrentPassword" data-i18n="currentPasswordLabel">Текущий пароль</label>
+          <input id="profileCurrentPassword" type="password" autocomplete="current-password" data-i18n-ph="phCurrentPassword" placeholder="Введите текущий пароль" />
+          <label class="block-label" for="profileNewPassword" data-i18n="newPasswordLabel">Новый пароль</label>
+          <input id="profileNewPassword" type="password" autocomplete="new-password" data-i18n-ph="phNewPassword" placeholder="Придумайте новый пароль" maxlength="72" />
+          <div class="password-change-footer">
+            <button id="changePasswordBtn" class="secondary-btn" type="button" data-i18n="changePasswordBtn">Изменить пароль</button>
+            <span id="passwordChangeStatus" aria-live="polite"></span>
+          </div>
+        </details>
         <button class="primary-btn" type="submit" data-i18n="saveProfileBtn">Сохранить</button>
       </form>
     </section>

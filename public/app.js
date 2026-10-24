@@ -70,6 +70,40 @@ const translations = {
     searchNoResults: 'Ничего не найдено', scrollToBottom: 'Вниз',
     messageActionsTitle: 'Действия с сообщением',
 
+    // New features
+    dateToday: 'Сегодня',
+    dateYesterday: 'Вчера',
+    emojiTitle: 'Эмодзи',
+    soundToggle: 'Звуки уведомлений',
+    presenceOnline: 'в сети',
+    presenceLastSeen: 'был(а) {time}',
+    presenceLastSeenUnknown: 'не в сети',
+    replyAction: 'Ответить',
+    replyPreviewYou: 'Вы',
+    replyPreviewImage: 'Фото',
+    replyPreviewSticker: 'Стикер',
+    replyPreviewVoice: 'Голосовое сообщение',
+    replyPreviewCall: 'Звонок',
+    voiceRecordStart: 'Голосовое сообщение',
+    voiceStop: 'Отправить голосовое',
+    voiceCancel: 'Отменить запись',
+    previewVoice: 'Голосовое сообщение',
+    errVoiceUnsupported: 'Запись голоса не поддерживается этим браузером.',
+    errVoiceTooLong: 'Голосовое сообщение не может быть длиннее 5 минут.',
+    errVoiceTooLarge: 'Голосовое сообщение слишком велико.',
+    voicePlay: 'Воспроизвести',
+    voicePause: 'Пауза',
+    passwordChangeTitle: 'Смена пароля',
+    currentPasswordLabel: 'Текущий пароль',
+    newPasswordLabel: 'Новый пароль',
+    phCurrentPassword: 'Введите текущий пароль',
+    phNewPassword: 'Придумайте новый пароль',
+    changePasswordBtn: 'Изменить пароль',
+    msgPasswordChanged: 'Пароль обновлён.',
+    errWrongPassword: 'Текущий пароль указан неверно.',
+    errPasswordRules: 'Новый пароль: минимум 6 символов, латинские буквы и цифры.',
+    notificationBody: '{name}: {text}',
+
     // Admin page
     adminTitle: 'Admin Panel',
     adminSubtitle: 'Доступ только по паролю',
@@ -162,6 +196,40 @@ const translations = {
     searchNoResults: 'No matches', scrollToBottom: 'Scroll to bottom',
     messageActionsTitle: 'Message actions',
 
+    // New features
+    dateToday: 'Today',
+    dateYesterday: 'Yesterday',
+    emojiTitle: 'Emoji',
+    soundToggle: 'Notification sounds',
+    presenceOnline: 'online',
+    presenceLastSeen: 'last seen {time}',
+    presenceLastSeenUnknown: 'offline',
+    replyAction: 'Reply',
+    replyPreviewYou: 'You',
+    replyPreviewImage: 'Photo',
+    replyPreviewSticker: 'Sticker',
+    replyPreviewVoice: 'Voice message',
+    replyPreviewCall: 'Call',
+    voiceRecordStart: 'Voice message',
+    voiceStop: 'Send voice message',
+    voiceCancel: 'Cancel recording',
+    previewVoice: 'Voice message',
+    errVoiceUnsupported: 'Voice recording is not supported by this browser.',
+    errVoiceTooLong: 'Voice messages cannot be longer than 5 minutes.',
+    errVoiceTooLarge: 'The voice message is too large.',
+    voicePlay: 'Play',
+    voicePause: 'Pause',
+    passwordChangeTitle: 'Change password',
+    currentPasswordLabel: 'Current password',
+    newPasswordLabel: 'New password',
+    phCurrentPassword: 'Enter your current password',
+    phNewPassword: 'Create a new password',
+    changePasswordBtn: 'Change password',
+    msgPasswordChanged: 'Password updated.',
+    errWrongPassword: 'The current password is incorrect.',
+    errPasswordRules: 'New password: at least 6 characters, Latin letters and digits.',
+    notificationBody: '{name}: {text}',
+
     // Admin page
     adminTitle: 'Admin Panel',
     adminSubtitle: 'Password restricted access',
@@ -253,6 +321,40 @@ const translations = {
     searchInChat: 'Buscar en el chat', searchPrev: 'Coincidencia anterior', searchNext: 'Siguiente coincidencia',
     searchNoResults: 'Sin resultados', scrollToBottom: 'Ir abajo',
     messageActionsTitle: 'Acciones del mensaje',
+
+    // New features
+    dateToday: 'Hoy',
+    dateYesterday: 'Ayer',
+    emojiTitle: 'Emojis',
+    soundToggle: 'Sonidos de notificación',
+    presenceOnline: 'en línea',
+    presenceLastSeen: 'últ. vez {time}',
+    presenceLastSeenUnknown: 'desconectado',
+    replyAction: 'Responder',
+    replyPreviewYou: 'Tú',
+    replyPreviewImage: 'Foto',
+    replyPreviewSticker: 'Sticker',
+    replyPreviewVoice: 'Mensaje de voz',
+    replyPreviewCall: 'Llamada',
+    voiceRecordStart: 'Mensaje de voz',
+    voiceStop: 'Enviar mensaje de voz',
+    voiceCancel: 'Cancelar grabación',
+    previewVoice: 'Mensaje de voz',
+    errVoiceUnsupported: 'Este navegador no admite la grabación de voz.',
+    errVoiceTooLong: 'Los mensajes de voz no pueden durar más de 5 minutos.',
+    errVoiceTooLarge: 'El mensaje de voz es demasiado grande.',
+    voicePlay: 'Reproducir',
+    voicePause: 'Pausa',
+    passwordChangeTitle: 'Cambiar contraseña',
+    currentPasswordLabel: 'Contraseña actual',
+    newPasswordLabel: 'Nueva contraseña',
+    phCurrentPassword: 'Introduce tu contraseña actual',
+    phNewPassword: 'Crea una nueva contraseña',
+    changePasswordBtn: 'Cambiar contraseña',
+    msgPasswordChanged: 'Contraseña actualizada.',
+    errWrongPassword: 'La contraseña actual es incorrecta.',
+    errPasswordRules: 'Nueva contraseña: al menos 6 caracteres, letras latinas y números.',
+    notificationBody: '{name}: {text}',
 
     // Admin page
     adminTitle: 'Panel de Admin',
@@ -380,6 +482,70 @@ function formatTime(isoStr) {
   }
 }
 
+function formatDuration(ms) {
+  const totalSeconds = Math.max(0, Math.round((Number(ms) || 0) / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatPresenceTime(isoStr) {
+  if (!isoStr) return null;
+  try {
+    const date = new Date(isoStr);
+    if (Number.isNaN(date.getTime())) return null;
+    const dateLocale = currentLang === 'ru' ? 'ru-RU' : currentLang === 'es' ? 'es-ES' : 'en-US';
+    const now = new Date();
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit' });
+    }
+    if (date.getFullYear() !== now.getFullYear()) {
+      return date.toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+    return date.toLocaleDateString(dateLocale, { day: 'numeric', month: 'short' });
+  } catch (e) {
+    return null;
+  }
+}
+
+function daySeparatorLabel(isoStr) {
+  if (!isoStr) return null;
+  try {
+    const date = new Date(isoStr);
+    if (Number.isNaN(date.getTime())) return null;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayDiff = Math.round((startOfToday - startOfDay) / 86400000);
+    if (dayDiff === 0) return t('dateToday');
+    if (dayDiff === 1) return t('dateYesterday');
+    const dateLocale = currentLang === 'ru' ? 'ru-RU' : currentLang === 'es' ? 'es-ES' : 'en-US';
+    if (date.getFullYear() !== now.getFullYear()) {
+      return date.toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    return date.toLocaleDateString(dateLocale, { day: 'numeric', month: 'long' });
+  } catch (e) {
+    return null;
+  }
+}
+
+function getUserPresence(userId) {
+  if (!userId) return null;
+  const entry = presenceById.get(String(userId));
+  if (!entry) return null;
+  return { online: Boolean(entry.online), lastSeenAt: entry.lastSeenAt || null };
+}
+
+// Unified human-readable preview for chat list, reply bars and notifications.
+function messagePreviewText(message) {
+  if (!message) return '';
+  if (message.type === 'image') return t('previewImage');
+  if (message.type === 'sticker') return t('previewSticker');
+  if (message.type === 'audio') return t('previewVoice');
+  if (message.type === 'call') return t('previewCall');
+  return message.text || '';
+}
+
 let currentUser = null;
 let selectedPartner = null;
 let currentUserList = [];
@@ -459,8 +625,35 @@ const profileUserId = document.getElementById('profileUserId');
 const profileImageInput = document.getElementById('profileImageInput');
 const profileAvatarPreview = document.getElementById('profileAvatarPreview');
 const closeProfileBtn = document.getElementById('closeProfileBtn');
+const voiceBtn = document.getElementById('voiceBtn');
+const recordingBar = document.getElementById('recordingBar');
+const recordingTime = document.getElementById('recordingTime');
+const voiceStopBtn = document.getElementById('voiceStopBtn');
+const voiceCancelBtn = document.getElementById('voiceCancelBtn');
+const emojiBtn = document.getElementById('emojiBtn');
+const emojiMenu = document.getElementById('emojiMenu');
+const replyBar = document.getElementById('replyBar');
+const replyBarName = document.getElementById('replyBarName');
+const replyBarText = document.getElementById('replyBarText');
+const replyCancelBtn = document.getElementById('replyCancelBtn');
+const partnerPresence = document.getElementById('partnerPresence');
+const soundToggleBtn = document.querySelector('[data-sound-toggle]');
+const profileCurrentPassword = document.getElementById('profileCurrentPassword');
+const profileNewPassword = document.getElementById('profileNewPassword');
+const changePasswordBtn = document.getElementById('changePasswordBtn');
+const passwordChangeStatus = document.getElementById('passwordChangeStatus');
 let pendingMessageImage = null;
 let pendingAvatarImage = null;
+let replyTarget = null;
+const presenceById = new Map();
+let soundEnabled = (() => {
+  try {
+    return localStorage.getItem('vmakstate_sound') !== '0';
+  } catch (error) {
+    return true;
+  }
+})();
+let notificationAudioContext = null;
 let typingIdleTimeout = null;
 let typingIndicatorTimeout = null;
 let lastTypingSentAt = 0;
@@ -495,7 +688,14 @@ function updateChatHeader(user) {
       partnerAbout.textContent = '';
       partnerAbout.classList.add('hidden');
     }
-    if (partnerAvatar) partnerAvatar.classList.add('hidden');
+    if (partnerPresence) {
+      partnerPresence.textContent = '';
+      partnerPresence.classList.remove('online');
+    }
+    if (partnerAvatar) {
+      partnerAvatar.classList.add('hidden');
+      partnerAvatar.classList.remove('is-online');
+    }
     if (audioCallBtn) audioCallBtn.disabled = true;
     if (videoCallBtn) videoCallBtn.disabled = true;
     if (chatSearchBtn) chatSearchBtn.disabled = true;
@@ -511,8 +711,18 @@ function updateChatHeader(user) {
     partnerAbout.title = user.about || '';
     partnerAbout.classList.toggle('hidden', !user.about);
   }
+  if (partnerPresence) {
+    const presence = user.id === currentUser?.id ? null : getUserPresence(user.id);
+    const lastSeenText = presence && !presence.online ? formatPresenceTime(presence.lastSeenAt) : null;
+    partnerPresence.textContent = !presence ? ''
+      : presence.online ? t('presenceOnline')
+        : lastSeenText ? t('presenceLastSeen', { time: lastSeenText })
+          : t('presenceLastSeenUnknown');
+    partnerPresence.classList.toggle('online', Boolean(presence?.online));
+  }
   if (partnerAvatar) {
     partnerAvatar.classList.remove('hidden');
+    partnerAvatar.classList.toggle('is-online', Boolean(getUserPresence(user.id)?.online));
     partnerAvatar.style.background = user.avatarData ? `url("${user.avatarData}") center / cover` : getAvatarBg(user.label || user.id);
     partnerAvatar.classList.toggle('avatar-photo', Boolean(user.avatarData));
     partnerAvatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
@@ -736,6 +946,7 @@ function renderUsers(users) {
     avatar.className = 'user-avatar-circle';
     avatar.style.background = user.avatarData ? `url("${user.avatarData}") center / cover` : getAvatarBg(user.label || user.id);
     avatar.classList.toggle('avatar-photo', Boolean(user.avatarData));
+    avatar.classList.toggle('is-online', Boolean(user.id !== currentUser?.id && getUserPresence(user.id)?.online));
     avatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
 
     const info = document.createElement('div');
@@ -751,11 +962,7 @@ function renderUsers(users) {
       const preview = document.createElement('div');
       preview.className = 'user-item-preview';
       const message = user.lastMessage;
-      const previewText = message.type === 'image' ? t('previewImage')
-        : message.type === 'sticker' ? t('previewSticker')
-          : message.type === 'call' ? t('previewCall')
-            : message.text || '';
-      preview.textContent = `${message.fromId === currentUser?.id ? `${t('previewYou')}: ` : ''}${previewText}`;
+      preview.textContent = `${message.fromId === currentUser?.id ? `${t('previewYou')}: ` : ''}${messagePreviewText(message)}`;
       info.appendChild(preview);
     }
 
@@ -779,6 +986,7 @@ function renderUsers(users) {
       sendTypingState(false);
       flushDraft();
       if (selectedPartner?.id !== user.id && isChatSearchOpen()) closeChatSearch();
+      if (selectedPartner?.id !== user.id) setReplyTarget(null);
       selectedPartner = user;
       lastTypingSentAt = 0;
       if (messageInput) messageInput.value = readDraft(user.id);
@@ -798,6 +1006,7 @@ function renderUsers(users) {
 
     userList.appendChild(item);
   });
+  updateUnreadTitle();
 }
 
 async function refreshUnreadIndicators() {
@@ -1050,6 +1259,461 @@ function reactionUserLabel(userId) {
   return known?.label || userId;
 }
 
+/* -------------------------------------------------------------------------
+   Replies, voice messages, emoji, notifications, sounds and presence
+   ------------------------------------------------------------------------- */
+
+function replyAuthorLabel(fromId) {
+  if (!fromId) return '';
+  if (fromId === currentUser?.id) return t('replyPreviewYou');
+  if (selectedPartner?.id === fromId) return selectedPartner.label || fromId;
+  return currentUserList.find((user) => user.id === fromId)?.label || fromId;
+}
+
+function setReplyTarget(target) {
+  replyTarget = target && target.id ? target : null;
+  if (!replyBar || !replyBarName || !replyBarText) return;
+  if (!replyTarget) {
+    replyBar.classList.add('hidden');
+    return;
+  }
+  replyBarName.textContent = replyAuthorLabel(replyTarget.fromId);
+  replyBarText.textContent = messagePreviewText(replyTarget);
+  replyBar.classList.remove('hidden');
+}
+
+const activeVoicePlayers = new Set();
+const VOICE_PLAY_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><polygon points="7 5 19 12 7 19" fill="currentColor"/></svg>';
+const VOICE_PAUSE_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
+
+function stopAllVoicePlayback() {
+  activeVoicePlayers.forEach((stop) => stop());
+  activeVoicePlayers.clear();
+}
+
+function createVoicePlayer(item) {
+  const container = document.createElement('div');
+  container.className = 'message-audio';
+
+  const playBtn = document.createElement('button');
+  playBtn.type = 'button';
+  playBtn.className = 'message-audio-play';
+  playBtn.innerHTML = VOICE_PLAY_ICON;
+  playBtn.setAttribute('aria-label', t('voicePlay'));
+
+  const trackOuter = document.createElement('button');
+  trackOuter.type = 'button';
+  trackOuter.className = 'message-audio-track';
+  trackOuter.setAttribute('aria-hidden', 'true');
+  trackOuter.tabIndex = -1;
+  const trackProgress = document.createElement('span');
+  trackProgress.className = 'message-audio-progress';
+  trackOuter.appendChild(trackProgress);
+
+  const timeLabel = document.createElement('span');
+  timeLabel.className = 'message-audio-time';
+  timeLabel.textContent = formatDuration(item.durationMs || 0);
+
+  let audio = null;
+  let playing = false;
+
+  const ensureAudio = () => {
+    if (audio) return audio;
+    audio = new Audio(item.audioData);
+    audio.preload = 'auto';
+    audio.addEventListener('timeupdate', () => {
+      if (audio.duration && Number.isFinite(audio.duration)) {
+        trackProgress.style.width = `${Math.min(100, (audio.currentTime / audio.duration) * 100)}%`;
+      } else if (item.durationMs) {
+        trackProgress.style.width = `${Math.min(100, (audio.currentTime * 1000 / item.durationMs) * 100)}%`;
+      }
+    });
+    audio.addEventListener('ended', () => {
+      playing = false;
+      playBtn.innerHTML = VOICE_PLAY_ICON;
+      playBtn.setAttribute('aria-label', t('voicePlay'));
+      container.classList.remove('playing');
+      trackProgress.style.width = '0%';
+      trackProgress.style.transition = 'none';
+      requestAnimationFrame(() => { trackProgress.style.transition = ''; });
+    });
+    activeVoicePlayers.add(() => {
+      try { audio?.pause(); } catch (error) { /* already stopped */ }
+      playing = false;
+    });
+    if (!item.durationMs) {
+      audio.addEventListener('loadedmetadata', () => {
+        if (Number.isFinite(audio.duration)) timeLabel.textContent = formatDuration(audio.duration * 1000);
+      });
+    }
+    return audio;
+  };
+
+  playBtn.addEventListener('click', async () => {
+    const player = ensureAudio();
+    try {
+      if (playing) {
+        player.pause();
+        playing = false;
+        playBtn.innerHTML = VOICE_PLAY_ICON;
+        playBtn.setAttribute('aria-label', t('voicePlay'));
+        container.classList.remove('playing');
+        return;
+      }
+      await player.play();
+      playing = true;
+      playBtn.innerHTML = VOICE_PAUSE_ICON;
+      playBtn.setAttribute('aria-label', t('voicePause'));
+      container.classList.add('playing');
+    } catch (error) {
+      // Playback may fail if the data URL is truncated or unsupported.
+    }
+  });
+
+  // Seek via pointer position (works for both mouse and touch).
+  trackOuter.addEventListener('pointerdown', (event) => {
+    const player = ensureAudio();
+    if (!player) return;
+    const rect = trackOuter.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    if (Number.isFinite(player.duration)) {
+      player.currentTime = ratio * player.duration;
+      trackProgress.style.width = `${ratio * 100}%`;
+    }
+    trackOuter.setPointerCapture?.(event.pointerId);
+    trackOuter.addEventListener('pointermove', (moveEvent) => {
+      const moveRect = trackOuter.getBoundingClientRect();
+      const moveRatio = Math.max(0, Math.min(1, (moveEvent.clientX - moveRect.left) / moveRect.width));
+      trackProgress.style.width = `${moveRatio * 100}%`;
+      if (Number.isFinite(player.duration)) player.currentTime = moveRatio * player.duration;
+    }, { once: true });
+  });
+
+  container.append(playBtn, trackOuter, timeLabel);
+  return container;
+}
+
+/* Voice recording ---------------------------------------------------------- */
+
+const VOICE_MAX_MS = 5 * 60 * 1000;
+let voiceRecorder = null;
+let voiceStream = null;
+let voiceChunks = [];
+let voiceStartedAt = 0;
+let voiceTimerInterval = null;
+let voiceStopping = false;
+
+function pickVoiceMimeType() {
+  if (!window.MediaRecorder) return '';
+  const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+  return candidates.find((candidate) => {
+    try { return MediaRecorder.isTypeSupported?.(candidate); } catch (error) { return false; }
+  }) || '';
+}
+
+function updateRecordingTime() {
+  if (!recordingTime) return;
+  recordingTime.textContent = formatDuration(Math.min(VOICE_MAX_MS + 1000, Date.now() - voiceStartedAt));
+}
+
+async function startVoiceRecording() {
+  if (!currentUser || !selectedPartner) {
+    alert(t('alertSelectPartner'));
+    return;
+  }
+  if (!window.MediaRecorder || !navigator.mediaDevices?.getUserMedia) {
+    alert(t('errVoiceUnsupported'));
+    return;
+  }
+  if (voiceRecorder) return;
+
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (error) {
+    alert(t('callMediaError'));
+    return;
+  }
+
+  const mimeType = pickVoiceMimeType();
+  voiceChunks = [];
+  try {
+    voiceRecorder = new MediaRecorder(voiceStream, mimeType ? { mimeType } : undefined);
+  } catch (error) {
+    voiceStream?.getTracks().forEach((track) => track.stop());
+    voiceStream = null;
+    alert(t('errVoiceUnsupported'));
+    return;
+  }
+  voiceRecorder.addEventListener('dataavailable', (event) => {
+    if (event.data && event.data.size) voiceChunks.push(event.data);
+  });
+  voiceRecorder.start(1000);
+  voiceStartedAt = Date.now();
+  recordingBar?.classList.remove('hidden');
+  voiceBtn?.classList.add('is-recording');
+  voiceBtn?.setAttribute('aria-pressed', 'true');
+  recordingTime?.classList.remove('limit-warn');
+  updateRecordingTime();
+  voiceTimerInterval = setInterval(updateRecordingTime, 250);
+}
+
+async function finishVoiceRecording(send) {
+  const recorder = voiceRecorder;
+  if (!recorder || voiceStopping) return;
+  voiceStopping = true;
+
+  const durationMs = Date.now() - voiceStartedAt;
+  const chunks = voiceChunks;
+
+  const blob = await new Promise((resolve) => {
+    if (recorder.state === 'inactive') {
+      resolve(chunks.length ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }) : null);
+      return;
+    }
+    recorder.addEventListener('stop', () => {
+      resolve(chunks.length ? new Blob(chunks, { type: recorder.mimeType || 'audio/webm' }) : null);
+    }, { once: true });
+    try { recorder.stop(); } catch (error) { resolve(null); }
+  });
+
+  voiceRecorder = null;
+  voiceStream?.getTracks().forEach((track) => track.stop());
+  voiceStream = null;
+  voiceChunks = [];
+  clearInterval(voiceTimerInterval);
+  voiceTimerInterval = null;
+  recordingBar?.classList.add('hidden');
+  voiceBtn?.classList.remove('is-recording');
+  voiceBtn?.setAttribute('aria-pressed', 'false');
+  voiceStopping = false;
+
+  if (!send) return;
+  if (!blob || !blob.size) {
+    alert(t('errVoiceTooLarge'));
+    return;
+  }
+  if (durationMs > VOICE_MAX_MS) {
+    alert(t('errVoiceTooLong'));
+    return;
+  }
+  if (blob.size * 1.4 > 5 * 1024 * 1024) {
+    alert(t('errVoiceTooLarge'));
+    return;
+  }
+
+  const audioDataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(t('errVoiceTooLarge')));
+    reader.readAsDataURL(blob);
+  });
+  sendVoiceMessage(audioDataUrl, Math.round(durationMs));
+}
+
+async function sendVoiceMessage(audioDataUrl, durationMs) {
+  if (!currentUser || !selectedPartner || !audioDataUrl) {
+    return;
+  }
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fromId: currentUser.id,
+        toId: selectedPartner.id,
+        text: '',
+        audioData: audioDataUrl,
+        durationMs,
+        replyToId: replyTarget?.id || null,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Unable to send voice message.');
+    setReplyTarget(null);
+    await loadMessages();
+    scrollFeedToBottom();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+/* Emoji picker -------------------------------------------------------------- */
+
+const EMOJIS = ['😀', '😄', '😅', '😊', '😍', '🤔', '😴', '😎', '😭', '😡', '🥳', '🤗',
+  '🤝', '👍', '👎', '🙏', '👏', '💪', '🔥', '❤️', '💔', '🎉', '🎂', '☕',
+  '🍕', '⚽', '🚀', '🌙', '☀️', '🌈', '⭐', '💩'];
+
+function buildEmojiMenu() {
+  if (!emojiMenu) return;
+  EMOJIS.forEach((emoji) => {
+    const option = document.createElement('button');
+    option.type = 'button';
+    option.className = 'emoji-option';
+    option.textContent = emoji;
+    option.addEventListener('click', () => insertEmoji(emoji));
+    emojiMenu.appendChild(option);
+  });
+}
+
+function insertEmoji(emoji) {
+  if (!messageInput) return;
+  const start = messageInput.selectionStart ?? messageInput.value.length;
+  const end = messageInput.selectionEnd ?? start;
+  messageInput.value = messageInput.value.slice(0, start) + emoji + messageInput.value.slice(end);
+  const caret = start + emoji.length;
+  messageInput.focus();
+  messageInput.setSelectionRange(caret, caret);
+  messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+buildEmojiMenu();
+
+/* Notification sounds, browser notifications and unread title --------------- */
+
+const baseTitle = document.title;
+
+function updateUnreadTitle() {
+  document.title = unreadUsers.size ? `${unreadUsers.size} · ${baseTitle}` : baseTitle;
+}
+
+function ensureNotificationAccess() {
+  try {
+    if (!notificationAudioContext) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) notificationAudioContext = new Ctx();
+    }
+    notificationAudioContext?.resume?.();
+  } catch (error) {
+    // Audio context is optional.
+  }
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function showIncomingNotification(message) {
+  if (!('Notification' in window) || Notification.permission !== 'granted' || !document.hidden) return;
+  try {
+    const body = t('notificationBody', {
+      name: replyAuthorLabel(message.fromId),
+      text: messagePreviewText(message) || t('previewYou'),
+    });
+    new Notification(t('appTitle'), {
+      body: body.slice(0, 140),
+      tag: `vmakstate-${message.fromId}`,
+      renotify: true,
+    });
+  } catch (error) {
+    // Notifications are best effort.
+  }
+}
+
+function playNotificationSound() {
+  if (!soundEnabled || !notificationAudioContext || notificationAudioContext.state !== 'running') return;
+  try {
+    const ctx = notificationAudioContext;
+    const now = ctx.currentTime;
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.connect(gain);
+    osc.frequency.setValueAtTime(740, now);
+    osc.frequency.setValueAtTime(988, now + 0.09);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.06, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+    osc.start(now);
+    osc.stop(now + 0.32);
+  } catch (error) {
+    // Sound is best effort.
+  }
+}
+
+function applySoundToggle() {
+  if (!soundToggleBtn) return;
+  soundToggleBtn.setAttribute('aria-pressed', String(soundEnabled));
+  soundToggleBtn.classList.toggle('is-off', !soundEnabled);
+}
+
+soundToggleBtn?.addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  try {
+    localStorage.setItem('vmakstate_sound', soundEnabled ? '1' : '0');
+  } catch (error) {
+    // Preference is optional.
+  }
+  ensureNotificationAccess();
+  if (soundEnabled) playNotificationSound();
+  applySoundToggle();
+});
+applySoundToggle();
+document.addEventListener('pointerdown', ensureNotificationAccess, { once: true });
+
+/* Presence ------------------------------------------------------------------- */
+
+async function loadPresence() {
+  if (!currentUser) return;
+  try {
+    const response = await fetch('/api/presence');
+    if (!response.ok) return;
+    const data = await response.json();
+    Object.entries(data || {}).forEach(([userId, value]) => {
+      presenceById.set(userId, { online: Boolean(value?.online), lastSeenAt: value?.lastSeenAt || null });
+    });
+    if (selectedPartner) updateChatHeader(selectedPartner);
+    renderUsers(currentUserList);
+  } catch (error) {
+    console.warn('Unable to load presence:', error);
+  }
+}
+
+/* Password change -------------------------------------------------------------- */
+
+async function handleChangePassword() {
+  if (!currentUser) return;
+  const currentPassword = profileCurrentPassword?.value || '';
+  const newPassword = profileNewPassword?.value || '';
+  if (!passwordChangeStatus) return;
+  passwordChangeStatus.textContent = '';
+  if (!/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,}$/.test(newPassword)) {
+    passwordChangeStatus.textContent = t('errPasswordRules');
+    passwordChangeStatus.classList.add('is-error');
+    return;
+  }
+  changePasswordBtn.disabled = true;
+  try {
+    const response = await fetch('/api/auth/password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error === 'Current password is incorrect.' ? t('errWrongPassword') : data.error || t('errPasswordRules'));
+    }
+    profileCurrentPassword.value = '';
+    profileNewPassword.value = '';
+    passwordChangeStatus.classList.remove('is-error');
+    passwordChangeStatus.textContent = t('msgPasswordChanged');
+  } catch (error) {
+    passwordChangeStatus.textContent = error.message;
+    passwordChangeStatus.classList.add('is-error');
+  } finally {
+    changePasswordBtn.disabled = false;
+  }
+}
+
+changePasswordBtn?.addEventListener('click', handleChangePassword);
+[profileCurrentPassword, profileNewPassword].forEach((input) => {
+  input?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleChangePassword();
+    }
+  });
+});
+
 async function loadMessages() {
   if (!currentUser || !messagesBox) return;
 
@@ -1110,6 +1774,7 @@ async function loadMessages() {
   const previousMessageCount = sameConversation ? renderedMessagesCount : 0;
   const previousScrollTop = messagesBox.scrollTop;
   const wasAtBottom = isFeedNearBottom();
+  stopAllVoicePlayback();
   messagesBox.innerHTML = '';
 
   if (messages.length === 0) {
@@ -1133,11 +1798,23 @@ async function loadMessages() {
     return;
   }
 
+  let lastSeparatorDay = null;
   messages.forEach((item) => {
     const isMe = item.fromId === currentUser.id;
+    const separatorLabel = daySeparatorLabel(item.createdAt);
+    const separatorKey = separatorLabel || '';
+    if (separatorLabel && separatorKey !== lastSeparatorDay && item.type !== 'call') {
+      lastSeparatorDay = separatorKey;
+      const separator = document.createElement('div');
+      separator.className = 'date-separator';
+      separator.textContent = separatorLabel;
+      messagesBox.appendChild(separator);
+    }
+
     const div = document.createElement('div');
     div.className = `message ${item.type === 'call' ? 'call-message' : isMe ? 'me' : 'other'}`;
     div.dataset.searchText = item.text || '';
+    div.dataset.id = item.id;
 
     if (item.type === 'call') {
       const mode = item.callMode === 'video' ? t('callVideo') : t('callAudio');
@@ -1149,6 +1826,31 @@ async function loadMessages() {
       return;
     }
 
+    // Quoted reply block: click scrolls back to the original message.
+    if (item.replyTo && item.replyTo.id) {
+      const quote = document.createElement('button');
+      quote.type = 'button';
+      quote.className = 'message-quote';
+      const quoteAuthor = document.createElement('span');
+      quoteAuthor.className = 'message-quote-author';
+      quoteAuthor.textContent = item.replyTo.fromId === currentUser.id
+        ? t('replyPreviewYou')
+        : (selectedPartner && item.replyTo.fromId === selectedPartner.id ? selectedPartner.label : item.replyTo.fromId);
+      const quoteText = document.createElement('span');
+      quoteText.className = 'message-quote-text';
+      quoteText.textContent = messagePreviewText(item.replyTo);
+      quote.append(quoteAuthor, quoteText);
+      quote.addEventListener('click', () => {
+        const original = messagesBox.querySelector(`[data-id="${item.replyTo.id}"]`);
+        if (!original) return;
+        original.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        original.classList.remove('quote-flash');
+        requestAnimationFrame(() => original.classList.add('quote-flash'));
+        setTimeout(() => original.classList.remove('quote-flash'), 1600);
+      });
+      div.appendChild(quote);
+    }
+
     if (!isMe) {
       const sender = document.createElement('div');
       sender.className = 'message-sender';
@@ -1156,30 +1858,34 @@ async function loadMessages() {
       div.appendChild(sender);
     }
 
-    const stickerUrl = item.type === 'sticker' ? (item.imageData || '/stickers/eto-realno.jpg') : null;
-    if (stickerUrl) {
-      const sticker = document.createElement('img');
-      sticker.className = 'message-sticker';
-      sticker.src = stickerUrl;
-      sticker.alt = 'Sticker';
-      div.appendChild(sticker);
-    }
+    if (item.type === 'audio' && item.audioData) {
+      div.appendChild(createVoicePlayer(item));
+    } else {
+      const stickerUrl = item.type === 'sticker' ? (item.imageData || '/stickers/eto-realno.jpg') : null;
+      if (stickerUrl) {
+        const sticker = document.createElement('img');
+        sticker.className = 'message-sticker';
+        sticker.src = stickerUrl;
+        sticker.alt = 'Sticker';
+        div.appendChild(sticker);
+      }
 
-    let messageTextElement = null;
-    if (item.text && item.type !== 'sticker') {
-      const text = document.createElement('div');
-      text.className = 'message-text';
-      text.textContent = item.text;
-      div.appendChild(text);
-      messageTextElement = text;
-    }
+      let messageTextElement = null;
+      if (item.text && item.type !== 'sticker') {
+        const text = document.createElement('div');
+        text.className = 'message-text';
+        text.textContent = item.text;
+        div.appendChild(text);
+        messageTextElement = text;
+      }
 
-    if (item.imageData && item.type !== 'sticker') {
-      const image = document.createElement('img');
-      image.className = 'message-image';
-      image.src = item.imageData;
-      image.alt = '';
-      div.appendChild(image);
+      if (item.imageData && item.type !== 'sticker') {
+        const image = document.createElement('img');
+        image.className = 'message-image';
+        image.src = item.imageData;
+        image.alt = '';
+        div.appendChild(image);
+      }
     }
 
     if (item.createdAt) {
@@ -1335,6 +2041,25 @@ async function loadMessages() {
       reactions.appendChild(button);
     });
 
+    if (item.type !== 'call') {
+      const replyButton = document.createElement('button');
+      replyButton.type = 'button';
+      replyButton.className = 'message-reply-btn';
+      replyButton.textContent = t('replyAction');
+      replyButton.addEventListener('click', () => {
+        actionsMenu.classList.add('hidden');
+        actionsToggle.setAttribute('aria-expanded', 'false');
+        setReplyTarget({
+          id: item.id,
+          fromId: item.fromId,
+          text: item.text,
+          type: item.type,
+          stickerId: item.stickerId,
+        });
+      });
+      actionsMenu.appendChild(replyButton);
+    }
+
     if (item.text) {
       const copyButton = document.createElement('button');
       copyButton.type = 'button';
@@ -1488,6 +2213,7 @@ async function sendMessage() {
         toId: selectedPartner.id,
         text,
         imageData: pendingMessageImage,
+        replyToId: replyTarget?.id || null,
       }),
     });
 
@@ -1499,6 +2225,7 @@ async function sendMessage() {
     clearTimeout(draftSaveTimeout);
     writeDraft(selectedPartner.id, '');
     pendingMessageImage = null;
+    setReplyTarget(null);
     if (imageInput) imageInput.value = '';
     attachmentPreview?.classList.add('hidden');
     await loadMessages();
@@ -1530,6 +2257,12 @@ function openProfile() {
   profileAvatarPreview.textContent = currentUser.label.charAt(0).toUpperCase();
   profileAvatarPreview.parentElement.style.backgroundImage = pendingAvatarImage ? `url("${pendingAvatarImage}")` : '';
   profileAvatarPreview.style.color = pendingAvatarImage ? 'transparent' : '';
+  if (profileCurrentPassword) profileCurrentPassword.value = '';
+  if (profileNewPassword) profileNewPassword.value = '';
+  if (passwordChangeStatus) {
+    passwordChangeStatus.textContent = '';
+    passwordChangeStatus.classList.remove('is-error');
+  }
   profileModal.classList.remove('hidden');
 }
 
@@ -1797,9 +2530,32 @@ function startRealtimeEvents() {
         if (selectedPartner && messages.some((message) => message.fromId === selectedPartner.id || message.toId === selectedPartner.id)) {
           loadMessages().catch((error) => console.error('Unable to refresh chat messages:', error));
         }
+
+        // Sound and notifications for incoming messages.
+        const incoming = messages.filter((message) => message.toId === currentUser.id);
+        const outsideCurrentChat = incoming.filter((message) =>
+          document.hidden || message.fromId !== selectedPartner?.id);
+        if (outsideCurrentChat.length) playNotificationSound();
+        incoming.forEach(showIncomingNotification);
       }, 150);
     } catch (error) {
       console.error('Unable to process realtime chat event:', error);
+    }
+  });
+  events.addEventListener('presence', (event) => {
+    try {
+      const payload = JSON.parse(event.data);
+      if (!payload?.userId) return;
+      presenceById.set(String(payload.userId), {
+        online: Boolean(payload.online),
+        lastSeenAt: payload.lastSeenAt || null,
+      });
+      if (selectedPartner?.id === String(payload.userId)) {
+        updateChatHeader(selectedPartner);
+      }
+      renderUsers(currentUserList);
+    } catch (error) {
+      console.warn('Unable to process presence event:', error);
     }
   });
   events.addEventListener('chat-typing', (event) => {
@@ -1823,6 +2579,7 @@ function startRealtimeEvents() {
   });
   events.onopen = () => {
     refreshUnreadIndicators().catch((error) => console.error('Unable to refresh chat list:', error));
+    loadPresence();
     if (selectedPartner) loadMessages().catch((error) => console.error('Unable to refresh chat messages:', error));
     pollCallSignals();
   };
@@ -2045,6 +2802,9 @@ if (searchInput && userList && messagesBox) {
     if (stickerMenu && stickerBtn && !stickerMenu.contains(event.target) && !stickerBtn.contains(event.target)) {
       stickerMenu.classList.add('hidden');
     }
+    if (emojiMenu && emojiBtn && !emojiMenu.contains(event.target) && !emojiBtn.contains(event.target)) {
+      emojiMenu.classList.add('hidden');
+    }
     document.querySelectorAll('.message-actions-menu:not(.hidden)').forEach((menu) => {
       if (menu.contains(event.target)) return;
       menu.classList.add('hidden');
@@ -2062,6 +2822,10 @@ if (searchInput && userList && messagesBox) {
       }
       if (stickerMenu && !stickerMenu.classList.contains('hidden')) {
         stickerMenu.classList.add('hidden');
+        return;
+      }
+      if (emojiMenu && !emojiMenu.classList.contains('hidden')) {
+        emojiMenu.classList.add('hidden');
         return;
       }
       const openMenus = document.querySelectorAll('.message-actions-menu:not(.hidden)');
@@ -2095,12 +2859,14 @@ if (searchInput && userList && messagesBox) {
           fromId: currentUser.id,
           toId: selectedPartner.id,
           stickerId: 'eto-realno',
+          replyToId: replyTarget?.id || null,
         }),
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || 'Unable to send sticker.');
       }
+      setReplyTarget(null);
       await loadMessages();
       scrollFeedToBottom();
     } catch (error) {
@@ -2169,6 +2935,17 @@ if (searchInput && userList && messagesBox) {
     if (imageInput) imageInput.value = '';
     attachmentPreview?.classList.add('hidden');
   });
+  voiceBtn?.addEventListener('click', () => {
+    if (voiceRecorder) return;
+    startVoiceRecording();
+  });
+  voiceStopBtn?.addEventListener('click', () => finishVoiceRecording(true));
+  voiceCancelBtn?.addEventListener('click', () => finishVoiceRecording(false));
+  emojiBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    emojiMenu?.classList.toggle('hidden');
+  });
+  replyCancelBtn?.addEventListener('click', () => setReplyTarget(null));
   profileBtn?.addEventListener('click', openProfile);
   closeProfileBtn?.addEventListener('click', closeProfile);
   profileForm?.addEventListener('submit', saveProfile);
@@ -2192,4 +2969,6 @@ window.addEventListener('beforeunload', () => {
     })], { type: 'application/json' }));
   }
   callState?.localStream?.getTracks().forEach((track) => track.stop());
+  voiceStream?.getTracks().forEach((track) => track.stop());
+  stopAllVoicePlayback();
 });
