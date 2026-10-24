@@ -98,6 +98,9 @@
             </div>
           </div>
           <div class="call-actions">
+            <button id="chatSearchBtn" class="call-icon-btn" type="button" data-i18n-title="searchInChat" title="Поиск в диалоге" aria-label="Поиск в диалоге" aria-expanded="false" aria-controls="chatSearchBar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
             <button id="audioCallBtn" class="call-icon-btn" type="button" disabled data-i18n-title="audioCallTitle" title="Аудиозвонок" aria-label="Аудиозвонок">
               <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.64a2 2 0 0 1-.45 2.11L8.01 9.74a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.86.29 1.74.5 2.64.62A2 2 0 0 1 22 16.92z"/></svg>
             </button>
@@ -107,7 +110,26 @@
           </div>
         </div>
 
+        <div id="chatSearchBar" class="chat-search-bar hidden">
+          <input id="chatSearchInput" type="search" data-i18n-ph="searchInChat" placeholder="Поиск в диалоге" autocomplete="off" />
+          <span id="chatSearchStatus" class="chat-search-status" aria-live="polite"></span>
+          <button id="chatSearchPrev" class="chat-search-nav" type="button" data-i18n-title="searchPrev" title="Предыдущее совпадение" aria-label="Предыдущее совпадение">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+          </button>
+          <button id="chatSearchNext" class="chat-search-nav" type="button" data-i18n-title="searchNext" title="Следующее совпадение" aria-label="Следующее совпадение">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <button id="chatSearchClose" class="chat-search-close" type="button" data-i18n-title="closeBtnLabel" aria-label="Закрыть">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+
         <div id="messages" class="messages"></div>
+
+        <button id="scrollToBottomBtn" class="scroll-to-bottom hidden" type="button" data-i18n-title="scrollToBottom" title="Вниз" aria-label="Вниз">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+          <span id="scrollToBottomCount" class="scroll-to-bottom-count hidden"></span>
+        </button>
 
         <div id="attachmentPreview" class="attachment-preview hidden">
           <img id="attachmentPreviewImage" alt="" />

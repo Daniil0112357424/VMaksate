@@ -1492,6 +1492,71 @@ textarea {
 
 /* Message feed */
 
+.chat-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 8px max(20px, calc((100% - var(--content-max)) / 2));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  animation: fadeIn 0.15s var(--ease) backwards;
+}
+
+.chat-search-bar input {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.chat-search-bar input:focus {
+  border-color: rgba(91, 87, 232, 0.4);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.chat-search-status {
+  flex: 0 0 auto;
+  min-width: 44px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.chat-search-nav,
+.chat-search-close {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 9px;
+  color: var(--text-2);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.chat-search-nav:hover,
+.chat-search-close:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+.message.search-hit {
+  outline: 2px solid rgba(91, 87, 232, 0.28);
+  outline-offset: 2px;
+}
+
+.message.search-hit.search-current {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .messages {
   display: flex;
   flex: 1;
@@ -1556,7 +1621,21 @@ textarea {
   font-size: 14px;
   line-height: 1.5;
   word-break: break-word;
-  animation: msgIn 0.2s var(--ease) both;
+  /* "backwards" keeps the entry animation from leaving a transform on the bubble:
+     a lingering transform creates a stacking context and traps the actions menu
+     under the following messages. */
+  animation: msgIn 0.2s var(--ease) backwards;
+}
+
+/* Keep the message that owns an open actions menu above its neighbours. */
+.message:hover,
+.message:focus-within,
+.message.actions-visible {
+  z-index: 6;
+}
+
+.message:has(.message-actions-menu:not(.hidden)) {
+  z-index: 20;
 }
 
 .message.other {
@@ -1718,6 +1797,12 @@ textarea {
   left: 0;
 }
 
+.message-actions-menu.opens-up {
+  top: auto;
+  bottom: 34px;
+}
+
+.message-copy-btn,
 .message-edit-btn,
 .message-delete-btn {
   display: flex;
@@ -1732,10 +1817,12 @@ textarea {
   text-align: left;
 }
 
+.message-copy-btn,
 .message-edit-btn {
   color: var(--text);
 }
 
+.message-copy-btn:hover,
 .message-edit-btn:hover {
   background: var(--surface-2);
 }
@@ -1790,6 +1877,10 @@ textarea {
   margin-top: 6px;
 }
 
+.message-reactions.is-pending {
+  opacity: 0.6;
+}
+
 .message-reaction-summary {
   display: inline-flex;
   align-items: center;
@@ -1803,12 +1894,34 @@ textarea {
   font-size: 11px;
   font-weight: 600;
   line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s var(--ease);
+}
+
+.message-reaction-summary:hover {
+  border-color: rgba(91, 87, 232, 0.4);
+  transform: translateY(-1px);
+}
+
+.message-reaction-summary.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
 }
 
 .message.me .message-reaction-summary {
   border-color: rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+
+.message.me .message-reaction-summary:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.message.me .message-reaction-summary.active {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .message-edit-form {
@@ -2005,6 +2118,83 @@ textarea {
 
 .send-btn:disabled {
   opacity: 0.55;
+}
+
+/* Scroll back to the newest messages */
+
+.scroll-to-bottom {
+  position: absolute;
+  right: max(20px, calc((100% - var(--content-max)) / 2));
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-2);
+  box-shadow: var(--shadow-md);
+  animation: fadeIn 0.15s var(--ease) backwards;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s var(--ease);
+}
+
+.scroll-to-bottom:hover {
+  background: var(--surface-3);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.scroll-to-bottom-count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 19px;
+  text-align: center;
+}
+
+/* Toasts */
+
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: 96px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.toast {
+  max-width: min(320px, calc(100vw - 40px));
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: toastIn 0.18s var(--ease) both;
+}
+
+.toast.toast-out {
+  opacity: 0;
+  transform: translateY(5px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 /* Sticker picker */
@@ -2367,6 +2557,17 @@ textarea {
   }
 }
 
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes cardIn {
   from {
     opacity: 0;
@@ -2540,6 +2741,23 @@ textarea {
   .messages {
     gap: 8px;
     padding: 16px 14px 12px;
+  }
+
+  .chat-search-bar {
+    padding: 7px 12px;
+  }
+
+  .chat-search-status {
+    min-width: 38px;
+  }
+
+  .scroll-to-bottom {
+    right: 14px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+
+  .toast-stack {
+    bottom: calc(88px + env(safe-area-inset-bottom));
   }
 
   .message {

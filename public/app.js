@@ -63,6 +63,11 @@ const translations = {
     previewYou: 'Вы', previewImage: 'Фото', previewSticker: 'Стикер', previewCall: 'Звонок',
     deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
     reactionHeart: 'Сердце', reactionLike: 'Нравится', reactionPoop: 'Какашка',
+    reactionAdd: 'Поставить реакцию', reactionRemove: 'Убрать вашу реакцию',
+    errReaction: 'Не удалось обновить реакцию.',
+    copyMessage: 'Копировать', copiedMessage: 'Скопировано', errCopyMessage: 'Не удалось скопировать.',
+    searchInChat: 'Поиск в диалоге', searchPrev: 'Предыдущее совпадение', searchNext: 'Следующее совпадение',
+    searchNoResults: 'Ничего не найдено', scrollToBottom: 'Вниз',
     messageActionsTitle: 'Действия с сообщением',
 
     // Admin page
@@ -150,6 +155,11 @@ const translations = {
     previewYou: 'You', previewImage: 'Photo', previewSticker: 'Sticker', previewCall: 'Call',
     deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
     reactionHeart: 'Heart', reactionLike: 'Like', reactionPoop: 'Poop',
+    reactionAdd: 'Add reaction', reactionRemove: 'Remove your reaction',
+    errReaction: 'Unable to update reaction.',
+    copyMessage: 'Copy', copiedMessage: 'Copied', errCopyMessage: 'Unable to copy.',
+    searchInChat: 'Search in chat', searchPrev: 'Previous match', searchNext: 'Next match',
+    searchNoResults: 'No matches', scrollToBottom: 'Scroll to bottom',
     messageActionsTitle: 'Message actions',
 
     // Admin page
@@ -237,6 +247,11 @@ const translations = {
     previewYou: 'Tú', previewImage: 'Foto', previewSticker: 'Sticker', previewCall: 'Llamada',
     deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
     reactionHeart: 'Corazón', reactionLike: 'Me gusta', reactionPoop: 'Caca',
+    reactionAdd: 'Añadir reacción', reactionRemove: 'Quitar tu reacción',
+    errReaction: 'No se pudo actualizar la reacción.',
+    copyMessage: 'Copiar', copiedMessage: 'Copiado', errCopyMessage: 'No se pudo copiar.',
+    searchInChat: 'Buscar en el chat', searchPrev: 'Coincidencia anterior', searchNext: 'Siguiente coincidencia',
+    searchNoResults: 'Sin resultados', scrollToBottom: 'Ir abajo',
     messageActionsTitle: 'Acciones del mensaje',
 
     // Admin page
@@ -398,6 +413,15 @@ const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const userList = document.getElementById('userList');
 const messagesBox = document.getElementById('messages');
+const chatSearchBtn = document.getElementById('chatSearchBtn');
+const chatSearchBar = document.getElementById('chatSearchBar');
+const chatSearchInput = document.getElementById('chatSearchInput');
+const chatSearchStatus = document.getElementById('chatSearchStatus');
+const chatSearchPrev = document.getElementById('chatSearchPrev');
+const chatSearchNext = document.getElementById('chatSearchNext');
+const chatSearchClose = document.getElementById('chatSearchClose');
+const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+const scrollToBottomCount = document.getElementById('scrollToBottomCount');
 const chatPartner = document.getElementById('chatPartner');
 const partnerAbout = document.getElementById('partnerAbout');
 const typingIndicator = document.getElementById('typingIndicator');
@@ -474,10 +498,13 @@ function updateChatHeader(user) {
     if (partnerAvatar) partnerAvatar.classList.add('hidden');
     if (audioCallBtn) audioCallBtn.disabled = true;
     if (videoCallBtn) videoCallBtn.disabled = true;
+    if (chatSearchBtn) chatSearchBtn.disabled = true;
+    if (isChatSearchOpen()) closeChatSearch();
     chatPanel?.classList.add('no-chat');
     return;
   }
   chatPanel?.classList.remove('no-chat');
+  if (chatSearchBtn) chatSearchBtn.disabled = false;
   chatPartner.textContent = user.label;
   if (partnerAbout) {
     partnerAbout.textContent = user.about || '';
@@ -750,8 +777,11 @@ function renderUsers(users) {
     item.addEventListener('click', () => {
       clearTimeout(typingIdleTimeout);
       sendTypingState(false);
+      flushDraft();
+      if (selectedPartner?.id !== user.id && isChatSearchOpen()) closeChatSearch();
       selectedPartner = user;
       lastTypingSentAt = 0;
+      if (messageInput) messageInput.value = readDraft(user.id);
       updateChatHeader(user);
       document.querySelectorAll('.user-item').forEach((el) => el.classList.remove('active'));
       item.classList.add('active');
@@ -833,6 +863,7 @@ async function searchUsers() {
 let latestMessagesRequest = 0;
 let renderedMessagesPartnerId = null;
 let renderedMessagesSignature = '';
+let renderedMessagesCount = 0;
 let mobileActionsTimeout = null;
 
 function getMessagesSignature(messages) {
@@ -844,6 +875,179 @@ function getMessagesSignature(messages) {
     message.text,
     message.reactions,
   ]));
+}
+
+/* -------------------------------------------------------------------------
+   Toasts, clipboard, drafts, feed scrolling and in-chat search
+   ------------------------------------------------------------------------- */
+
+let toastStack = null;
+
+function showToast(message) {
+  if (!message) return;
+  if (!toastStack) {
+    toastStack = document.createElement('div');
+    toastStack.className = 'toast-stack';
+    toastStack.setAttribute('role', 'status');
+    toastStack.setAttribute('aria-live', 'polite');
+    document.body.appendChild(toastStack);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  toastStack.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    setTimeout(() => toast.remove(), 220);
+  }, 1800);
+}
+
+async function copyTextToClipboard(text) {
+  if (!text) return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (error) {
+    // Fall back to the legacy selection based approach below.
+  }
+  try {
+    const helper = document.createElement('textarea');
+    helper.value = text;
+    helper.setAttribute('readonly', '');
+    helper.style.position = 'fixed';
+    helper.style.top = '-1000px';
+    helper.style.opacity = '0';
+    document.body.appendChild(helper);
+    helper.select();
+    const copied = document.execCommand('copy');
+    helper.remove();
+    return copied;
+  } catch (error) {
+    return false;
+  }
+}
+
+const DRAFT_STORAGE_PREFIX = 'vmakstate_draft_';
+let draftSaveTimeout = null;
+
+function readDraft(userId) {
+  if (!userId) return '';
+  try {
+    return localStorage.getItem(`${DRAFT_STORAGE_PREFIX}${userId}`) || '';
+  } catch (error) {
+    return '';
+  }
+}
+
+function writeDraft(userId, text) {
+  if (!userId) return;
+  try {
+    if (text) localStorage.setItem(`${DRAFT_STORAGE_PREFIX}${userId}`, text);
+    else localStorage.removeItem(`${DRAFT_STORAGE_PREFIX}${userId}`);
+  } catch (error) {
+    // Drafts are a convenience; ignore storage failures.
+  }
+}
+
+function flushDraft() {
+  clearTimeout(draftSaveTimeout);
+  draftSaveTimeout = null;
+  if (selectedPartner && messageInput) writeDraft(selectedPartner.id, messageInput.value);
+}
+
+let pendingNewMessages = 0;
+
+function isFeedNearBottom() {
+  if (!messagesBox) return true;
+  return messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight < 60;
+}
+
+function updateScrollToBottomButton() {
+  if (!scrollToBottomBtn) return;
+  const nearBottom = isFeedNearBottom();
+  if (nearBottom) pendingNewMessages = 0;
+  scrollToBottomBtn.classList.toggle('hidden', nearBottom);
+  const showCount = pendingNewMessages > 0;
+  scrollToBottomCount?.classList.toggle('hidden', !showCount);
+  if (scrollToBottomCount && showCount) {
+    scrollToBottomCount.textContent = pendingNewMessages > 99 ? '99+' : String(pendingNewMessages);
+  }
+}
+
+function scrollFeedToBottom() {
+  if (!messagesBox) return;
+  pendingNewMessages = 0;
+  messagesBox.scrollTo({ top: messagesBox.scrollHeight, behavior: 'smooth' });
+  updateScrollToBottomButton();
+}
+
+let chatSearchHits = [];
+let chatSearchIndex = -1;
+
+function openChatSearch() {
+  if (!chatSearchBar) return;
+  chatSearchBar.classList.remove('hidden');
+  chatSearchBtn?.setAttribute('aria-expanded', 'true');
+  chatSearchInput?.focus();
+  chatSearchInput?.select();
+  applyChatSearch(true);
+}
+
+function closeChatSearch() {
+  if (!chatSearchBar) return;
+  chatSearchBar.classList.add('hidden');
+  chatSearchBtn?.setAttribute('aria-expanded', 'false');
+  if (chatSearchInput) chatSearchInput.value = '';
+  chatSearchHits = [];
+  chatSearchIndex = -1;
+  messagesBox?.querySelectorAll('.message.search-hit, .message.search-current')
+    .forEach((message) => message.classList.remove('search-hit', 'search-current'));
+  if (chatSearchStatus) chatSearchStatus.textContent = '';
+}
+
+function focusChatSearchHit(index, scroll = true) {
+  const total = chatSearchHits.length;
+  if (!total) return;
+  chatSearchIndex = ((index % total) + total) % total;
+  chatSearchHits.forEach((message, position) => {
+    message.classList.toggle('search-current', position === chatSearchIndex);
+  });
+  if (scroll) chatSearchHits[chatSearchIndex].scrollIntoView({ block: 'center', behavior: 'smooth' });
+  if (chatSearchStatus) chatSearchStatus.textContent = `${chatSearchIndex + 1}/${total}`;
+}
+
+function applyChatSearch(jumpToNewest = false, scrollToHit = true) {
+  if (!messagesBox) return;
+  const query = chatSearchInput?.value.trim().toLowerCase() || '';
+  messagesBox.querySelectorAll('.message.search-hit, .message.search-current')
+    .forEach((message) => message.classList.remove('search-hit', 'search-current'));
+  chatSearchHits = [];
+  chatSearchIndex = -1;
+  if (!query) {
+    if (chatSearchStatus) chatSearchStatus.textContent = '';
+    return;
+  }
+  chatSearchHits = Array.from(messagesBox.querySelectorAll('.message'))
+    .filter((message) => (message.dataset.searchText || '').toLowerCase().includes(query));
+  chatSearchHits.forEach((message) => message.classList.add('search-hit'));
+  if (!chatSearchHits.length) {
+    if (chatSearchStatus) chatSearchStatus.textContent = t('searchNoResults');
+    return;
+  }
+  focusChatSearchHit(jumpToNewest ? chatSearchHits.length - 1 : 0, scrollToHit);
+}
+
+function isChatSearchOpen() {
+  return Boolean(chatSearchBar && !chatSearchBar.classList.contains('hidden'));
+}
+
+function reactionUserLabel(userId) {
+  if (userId === currentUser?.id) return t('previewYou');
+  if (selectedPartner?.id === userId) return selectedPartner.label || userId;
+  const known = currentUserList.find((user) => user.id === userId);
+  return known?.label || userId;
 }
 
 async function loadMessages() {
@@ -902,7 +1106,10 @@ async function loadMessages() {
   if (messagesBox.querySelector('.message-edit-form')) return;
   const signature = getMessagesSignature(messages);
   if (renderedMessagesPartnerId === partnerId && renderedMessagesSignature === signature) return;
-  const wasAtBottom = messagesBox.scrollHeight - messagesBox.scrollTop - messagesBox.clientHeight < 40;
+  const sameConversation = renderedMessagesPartnerId === partnerId;
+  const previousMessageCount = sameConversation ? renderedMessagesCount : 0;
+  const previousScrollTop = messagesBox.scrollTop;
+  const wasAtBottom = isFeedNearBottom();
   messagesBox.innerHTML = '';
 
   if (messages.length === 0) {
@@ -919,6 +1126,10 @@ async function loadMessages() {
     `;
     renderedMessagesPartnerId = partnerId;
     renderedMessagesSignature = signature;
+    renderedMessagesCount = 0;
+    pendingNewMessages = 0;
+    updateScrollToBottomButton();
+    applyChatSearch(false, false);
     return;
   }
 
@@ -926,6 +1137,7 @@ async function loadMessages() {
     const isMe = item.fromId === currentUser.id;
     const div = document.createElement('div');
     div.className = `message ${item.type === 'call' ? 'call-message' : isMe ? 'me' : 'other'}`;
+    div.dataset.searchText = item.text || '';
 
     if (item.type === 'call') {
       const mode = item.callMode === 'video' ? t('callVideo') : t('callAudio');
@@ -1002,9 +1214,23 @@ async function loadMessages() {
     actionsMenu.className = 'message-actions-menu hidden';
     actionsToggle.addEventListener('click', (event) => {
       event.stopPropagation();
-      const open = actionsMenu.classList.toggle('hidden') === false;
+      const open = actionsMenu.classList.contains('hidden');
+      actionsMenu.classList.toggle('hidden', !open);
+      actionsMenu.classList.remove('opens-up');
       actionsToggle.setAttribute('aria-expanded', String(open));
-      if (!open && window.matchMedia('(hover: none)').matches) {
+      if (open) {
+        clearTimeout(mobileActionsTimeout);
+        if (window.matchMedia('(hover: none)').matches) div.classList.add('actions-visible');
+        // The menu is rendered inside the message bubble, so it can be clipped by
+        // the scrollable feed. For the last messages open it upwards instead.
+        const feedRect = messagesBox.getBoundingClientRect();
+        const menuRect = actionsMenu.getBoundingClientRect();
+        const toggleRect = actionsToggle.getBoundingClientRect();
+        const availableAbove = toggleRect.top - feedRect.top - 8;
+        if (menuRect.bottom > feedRect.bottom - 8 && availableAbove >= menuRect.height) {
+          actionsMenu.classList.add('opens-up');
+        }
+      } else if (window.matchMedia('(hover: none)').matches) {
         clearTimeout(mobileActionsTimeout);
         mobileActionsTimeout = setTimeout(() => div.classList.remove('actions-visible'), 4000);
       }
@@ -1024,15 +1250,66 @@ async function loadMessages() {
 
     const reactionSummary = document.createElement('div');
     reactionSummary.className = 'message-reactions';
+    const reactionButtons = [];
+    let reactionRequestPending = false;
+
+    const updateReactionButtons = () => {
+      reactionButtons.forEach(({ button, key, label }) => {
+        const users = Array.isArray(item.reactions?.[key]) ? item.reactions[key] : [];
+        const isActive = users.includes(currentUser.id);
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-label', `${label}: ${users.length}`);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+    };
+
+    const applyReactions = (nextReactions) => {
+      item.reactions = nextReactions && typeof nextReactions === 'object' ? nextReactions : {};
+      updateReactionButtons();
+      renderReactionSummary();
+      renderedMessagesSignature = getMessagesSignature(messages);
+    };
+
+    const toggleReaction = async (key) => {
+      if (reactionRequestPending) return;
+      reactionRequestPending = true;
+      reactionSummary.classList.add('is-pending');
+      try {
+        const response = await fetch('/api/chat/reactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageId: item.id, reaction: key }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || t('errReaction'));
+        applyReactions(result.reactions);
+      } catch (error) {
+        alert(error.message || t('errReaction'));
+      } finally {
+        reactionRequestPending = false;
+        reactionSummary.classList.remove('is-pending');
+      }
+    };
+
     const renderReactionSummary = () => {
       reactionSummary.replaceChildren();
       reactionOptions.forEach(({ key, emoji, label }) => {
         const users = Array.isArray(item.reactions?.[key]) ? item.reactions[key] : [];
         if (!users.length) return;
-        const badge = document.createElement('span');
+        const isActive = users.includes(currentUser.id);
+        const hint = isActive ? t('reactionRemove') : t('reactionAdd');
+        const badge = document.createElement('button');
+        badge.type = 'button';
         badge.className = 'message-reaction-summary';
-        badge.setAttribute('aria-label', `${label}: ${users.length}`);
+        badge.classList.toggle('active', isActive);
+        badge.setAttribute('aria-pressed', String(isActive));
+        badge.setAttribute('aria-label', `${label}: ${users.length}. ${hint}`);
+        badge.setAttribute('title', `${users.map(reactionUserLabel).join(', ')} — ${hint}`);
         badge.textContent = `${emoji} ${users.length}`;
+        badge.addEventListener('click', (event) => {
+          event.stopPropagation();
+          toggleReaction(key);
+        });
         reactionSummary.appendChild(badge);
       });
       reactionSummary.classList.toggle('hidden', reactionSummary.childElementCount === 0);
@@ -1042,44 +1319,35 @@ async function loadMessages() {
 
     const reactions = document.createElement('div');
     reactions.className = 'message-reaction-picker';
-    const reactionButtons = [];
     reactionOptions.forEach(({ key, emoji, label }) => {
       const users = Array.isArray(reactionUsers[key]) ? reactionUsers[key] : [];
+      const isActive = users.includes(currentUser.id);
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'message-reaction-option';
-      button.classList.toggle('active', users.includes(currentUser.id));
+      button.classList.toggle('active', isActive);
       button.setAttribute('aria-label', `${label}: ${users.length}`);
       button.setAttribute('title', label);
-      button.setAttribute('aria-pressed', String(users.includes(currentUser.id)));
+      button.setAttribute('aria-pressed', String(isActive));
       button.textContent = emoji;
+      button.addEventListener('click', () => toggleReaction(key));
       reactionButtons.push({ button, key, emoji, label });
-      button.addEventListener('click', async () => {
-        try {
-          const response = await fetch('/api/chat/reactions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageId: item.id, reaction: key }),
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || 'Unable to update reaction.');
-          item.reactions = result.reactions;
-          reactionButtons.forEach(({ button: reactionButton, key: reactionKey, emoji: reactionEmoji, label: reactionLabel }) => {
-            const usersForReaction = Array.isArray(item.reactions[reactionKey]) ? item.reactions[reactionKey] : [];
-            const isActive = usersForReaction.includes(currentUser.id);
-            reactionButton.classList.toggle('active', isActive);
-            reactionButton.setAttribute('aria-label', `${reactionLabel}: ${usersForReaction.length}`);
-            reactionButton.setAttribute('aria-pressed', String(isActive));
-            reactionButton.textContent = reactionEmoji;
-          });
-          renderReactionSummary();
-          renderedMessagesSignature = getMessagesSignature(messages);
-        } catch (error) {
-          alert(error.message);
-        }
-      });
       reactions.appendChild(button);
     });
+
+    if (item.text) {
+      const copyButton = document.createElement('button');
+      copyButton.type = 'button';
+      copyButton.className = 'message-copy-btn';
+      copyButton.textContent = t('copyMessage');
+      copyButton.addEventListener('click', async () => {
+        actionsMenu.classList.add('hidden');
+        actionsToggle.setAttribute('aria-expanded', 'false');
+        const copied = await copyTextToClipboard(item.text);
+        showToast(copied ? t('copiedMessage') : t('errCopyMessage'));
+      });
+      actionsMenu.appendChild(copyButton);
+    }
 
     if (isMe && item.type !== 'call') {
       if (item.type === 'text' && messageTextElement) {
@@ -1179,9 +1447,21 @@ async function loadMessages() {
 
   renderedMessagesPartnerId = partnerId;
   renderedMessagesSignature = signature;
+  renderedMessagesCount = messages.length;
   unreadUsers.delete(selectedPartner.id);
 
-  if (wasAtBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
+  if (!sameConversation || wasAtBottom) {
+    messagesBox.scrollTop = messagesBox.scrollHeight;
+    pendingNewMessages = 0;
+  } else {
+    // Keep the reading position when the feed is rebuilt under the user.
+    messagesBox.scrollTop = previousScrollTop;
+    if (messages.length > previousMessageCount) {
+      pendingNewMessages += messages.length - previousMessageCount;
+    }
+  }
+  updateScrollToBottomButton();
+  if (isChatSearchOpen()) applyChatSearch(false, false);
 }
 
 let isSendingMessage = false;
@@ -1216,10 +1496,13 @@ async function sendMessage() {
     }
 
     messageInput.value = '';
+    clearTimeout(draftSaveTimeout);
+    writeDraft(selectedPartner.id, '');
     pendingMessageImage = null;
     if (imageInput) imageInput.value = '';
     attachmentPreview?.classList.add('hidden');
     await loadMessages();
+    scrollFeedToBottom();
   } catch (error) {
     alert(error.message);
   } finally {
@@ -1771,6 +2054,33 @@ if (searchInput && userList && messagesBox) {
       document.querySelectorAll('.message.actions-visible').forEach((message) => message.classList.remove('actions-visible'));
     }
   });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      if (profileModal && !profileModal.classList.contains('hidden')) {
+        closeProfile();
+        return;
+      }
+      if (stickerMenu && !stickerMenu.classList.contains('hidden')) {
+        stickerMenu.classList.add('hidden');
+        return;
+      }
+      const openMenus = document.querySelectorAll('.message-actions-menu:not(.hidden)');
+      if (openMenus.length) {
+        openMenus.forEach((menu) => {
+          menu.classList.add('hidden');
+          menu.parentElement?.querySelector('.message-actions-toggle')?.setAttribute('aria-expanded', 'false');
+        });
+        document.querySelectorAll('.message.actions-visible').forEach((message) => message.classList.remove('actions-visible'));
+        return;
+      }
+      if (isChatSearchOpen()) closeChatSearch();
+      return;
+    }
+    if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'f' && selectedPartner) {
+      event.preventDefault();
+      openChatSearch();
+    }
+  });
   etoRealnoSticker?.addEventListener('click', async () => {
     if (!currentUser || !selectedPartner) {
       alert(t('alertSelectPartner'));
@@ -1792,12 +2102,16 @@ if (searchInput && userList && messagesBox) {
         throw new Error(data.error || 'Unable to send sticker.');
       }
       await loadMessages();
+      scrollFeedToBottom();
     } catch (error) {
       alert(error.message);
     }
   });
   sendBtn.addEventListener('click', sendMessage);
   messageInput.addEventListener('input', () => {
+    const draftPartnerId = selectedPartner?.id;
+    clearTimeout(draftSaveTimeout);
+    draftSaveTimeout = setTimeout(() => writeDraft(draftPartnerId, messageInput.value), 250);
     clearTimeout(typingIdleTimeout);
     if (!messageInput.value.trim()) {
       sendTypingState(false);
@@ -1815,6 +2129,24 @@ if (searchInput && userList && messagesBox) {
   });
   audioCallBtn?.addEventListener('click', () => startCall('audio'));
   videoCallBtn?.addEventListener('click', () => startCall('video'));
+  chatSearchBtn?.addEventListener('click', () => {
+    if (isChatSearchOpen()) closeChatSearch();
+    else openChatSearch();
+  });
+  chatSearchInput?.addEventListener('input', () => {
+    applyChatSearch(true);
+  });
+  chatSearchInput?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    if (!chatSearchHits.length) return;
+    focusChatSearchHit(chatSearchIndex + (event.shiftKey ? -1 : 1));
+  });
+  chatSearchNext?.addEventListener('click', () => focusChatSearchHit(chatSearchIndex + 1));
+  chatSearchPrev?.addEventListener('click', () => focusChatSearchHit(chatSearchIndex - 1));
+  chatSearchClose?.addEventListener('click', closeChatSearch);
+  messagesBox.addEventListener('scroll', () => updateScrollToBottomButton());
+  scrollToBottomBtn?.addEventListener('click', scrollFeedToBottom);
   acceptCallBtn?.addEventListener('click', acceptIncomingCall);
   declineCallBtn?.addEventListener('click', declineIncomingCall);
   endCallBtn?.addEventListener('click', () => endCurrentCall());
