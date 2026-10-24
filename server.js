@@ -26,6 +26,7 @@ let supabase = null;
 let supabaseEnabled = false;
 const userEventClients = new Map();
 const typingEventThrottle = new Map();
+const presenceByUser = new Map();
 
 // --- Password hashing (bcrypt) -------------------------------------------
 // bcrypt stores a salted hash; the original password cannot be recovered
@@ -79,6 +80,32 @@ function publishUserEvent(userId, eventName, payload) {
   if (!clients) return;
   const event = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
   clients.forEach((client) => client.write(event));
+}
+
+function broadcastEvent(eventName, payload) {
+  const event = `event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`;
+  userEventClients.forEach((clients) => clients.forEach((client) => client.write(event)));
+}
+
+// Persist the last-seen timestamp so it survives restarts. Best effort only.
+async function persistLastSeen(userId, lastSeenAt) {
+  const id = String(userId);
+  try {
+    if (supabaseEnabled) {
+      await supabase.from('users').update({ last_seen: lastSeenAt }).eq('id', id);
+    } else if (firebaseEnabled && firebaseDb) {
+      await firebaseDb.collection('users').doc(id).set({ lastSeenAt }, { merge: true });
+      invalidateFirestoreCache();
+    } else {
+      const user = memoryStore.users.find((entry) => entry.id === id);
+      if (user) {
+        user.lastSeen = lastSeenAt;
+        persistStore();
+      }
+    }
+  } catch (error) {
+    console.warn('Unable to persist last seen:', error.message);
+  }
 }
 
 function publishChatMessage(message) {
@@ -178,14 +205,54 @@ app.get('/api/events', (req, res) => {
   const key = String(userId);
   if (!userEventClients.has(key)) userEventClients.set(key, new Set());
   userEventClients.get(key).add(res);
+
+  // Presence: a live SSE stream means the user's browser is connected.
+  if (!presenceByUser.get(key)?.online) {
+    presenceByUser.set(key, { online: true, lastSeenAt: new Date().toISOString() });
+    broadcastEvent('presence', { userId: key, online: true, lastSeenAt: null });
+  }
   const heartbeat = setInterval(() => res.write(': keep-alive\n\n'), 25000);
 
   res.on('close', () => {
     clearInterval(heartbeat);
     const clients = userEventClients.get(key);
     clients?.delete(res);
-    if (clients?.size === 0) userEventClients.delete(key);
+    if (clients?.size === 0) {
+      userEventClients.delete(key);
+      const lastSeenAt = new Date().toISOString();
+      presenceByUser.set(key, { online: false, lastSeenAt });
+      broadcastEvent('presence', { userId: key, online: false, lastSeenAt });
+      persistLastSeen(key, lastSeenAt);
+    }
   });
+});
+
+app.get('/api/presence', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  await storeReady;
+
+  const presence = {};
+  presenceByUser.forEach((value, id) => { presence[id] = { ...value, online: Boolean(value.online) }; });
+
+  // Enrich users that were never online in this process with their stored last-seen.
+  try {
+    const allUsers = supabaseEnabled
+      ? (await supabase.from('users').select('id, last_seen')).data
+      : firebaseEnabled && firebaseDb
+        ? await getFirestoreUsers()
+        : memoryStore.users;
+    (allUsers || []).forEach((user) => {
+      const id = String(user.id || '');
+      if (!(id in presence)) {
+        presence[id] = { online: false, lastSeenAt: user.last_seen || user.lastSeenAt || user.lastSeen || null };
+      }
+    });
+  } catch (error) {
+    console.warn('Unable to enrich presence with stored last seen:', error.message);
+  }
+
+  res.json(presence);
 });
 
 app.post('/api/chat/typing', (req, res) => {
@@ -456,6 +523,7 @@ const storeReady = readStoreFromDiskOrDb().then((data) => {
 function toAppMessage(message) {
   const stickerId = message.sticker_id || null;
   const type = String(message.type || 'text');
+  const replyRaw = message.reply_to || message.replyTo || null;
 
   return {
     id: String(message.id),
@@ -463,6 +531,17 @@ function toAppMessage(message) {
     toId: String(message.to_id),
     text: String(message.text || ''),
     imageData: message.image_data || (type === 'sticker' ? getStickerAssetUrl(stickerId) : null),
+    audioData: message.audio_data || message.audioData || null,
+    durationMs: Number.isFinite(Number(message.duration_ms ?? message.durationMs))
+      ? Number(message.duration_ms ?? message.durationMs)
+      : null,
+    replyTo: replyRaw && typeof replyRaw === 'object' ? {
+      id: String(replyRaw.id || ''),
+      fromId: String(replyRaw.fromId || ''),
+      text: String(replyRaw.text || ''),
+      type: String(replyRaw.type || 'text'),
+      stickerId: replyRaw.stickerId || null,
+    } : null,
     type,
     callId: message.call_id || null,
     callMode: message.call_mode || null,
@@ -483,6 +562,9 @@ function toDatabaseMessage(message) {
     to_id: message.toId,
     text: message.text,
     image_data: message.imageData || null,
+    audio_data: message.audioData || null,
+    duration_ms: Number.isFinite(Number(message.durationMs)) ? Number(message.durationMs) : null,
+    reply_to: message.replyTo || null,
     type: message.type || 'text',
     call_id: message.callId || null,
     call_mode: message.callMode || null,
@@ -512,6 +594,7 @@ function getStickerAssetUrl(stickerId) {
 }
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024;
 
 function validImageData(value) {
   if (typeof value !== 'string' || !/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
@@ -519,6 +602,15 @@ function validImageData(value) {
   }
   const base64Data = value.slice(value.indexOf(',') + 1);
   return Buffer.byteLength(base64Data, 'base64') <= MAX_IMAGE_SIZE_BYTES;
+}
+
+function validAudioData(value) {
+  if (typeof value !== 'string'
+    || !/^data:audio\/(webm|ogg|mp4|mpeg|mp3|wav|x-wav|x-m4a|aac);base64,[a-z0-9+/=]+$/i.test(value)) {
+    return false;
+  }
+  const base64Data = value.slice(value.indexOf(',') + 1);
+  return Buffer.byteLength(base64Data, 'base64') <= MAX_AUDIO_SIZE_BYTES;
 }
 
 function pruneDemoUsers() {
@@ -799,6 +891,29 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/auth/password', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const { currentPassword = '', newPassword = '' } = req.body || {};
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  if (typeof newPassword !== 'string' || !/^(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,}$/.test(newPassword)) {
+    return res.status(400).json({ error: 'Новый пароль: не менее 6 символов, латинские буквы и цифры, минимум по одной букве и цифре.' });
+  }
+
+  await storeReady;
+  const user = supabaseEnabled
+    ? (await supabase.from('users').select('id, password').eq('id', String(userId)).maybeSingle()).data
+    : firebaseEnabled && firebaseDb
+      ? (await firebaseDb.collection('users').doc(String(userId)).get()).data()
+      : memoryStore.users.find((entry) => entry.id === String(userId));
+  if (!user) return res.status(404).json({ error: 'User not found.' });
+
+  const currentOk = await verifyPassword(String(currentPassword), String(user.password || ''));
+  if (!currentOk) return res.status(401).json({ error: 'Current password is incorrect.' });
+
+  await storePasswordHash(userId, await hashPassword(newPassword));
+  res.json({ ok: true });
+});
+
 function requireAdmin(req, res, next) {
   if (!isValidAdminSession(req.cookies?.adminSession)) {
     return res.status(401).json({ error: 'Admin access required.' });
@@ -1024,8 +1139,8 @@ app.get('/api/chat', async (req, res) => {
 
   if (supabaseEnabled) {
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', me).eq('to_id', other),
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', other).eq('to_id', me),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, audio_data, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', me).eq('to_id', other),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, audio_data, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', other).eq('to_id', me),
     ]);
     if (sentError || receivedError) throw sentError || receivedError;
     const incoming = received || [];
@@ -1076,9 +1191,20 @@ app.get('/api/chat', async (req, res) => {
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const { fromId, toId, text = '', imageData = null, stickerId = null } = req.body || {};
+    const {
+      fromId, toId, text = '', imageData = null, stickerId = null,
+      audioData = null, durationMs = null, replyToId = null,
+    } = req.body || {};
 
-    if (!fromId || !toId || (!String(text).trim() && !imageData && !stickerId) || String(text).length > 4000 || (imageData && !validImageData(imageData)) || (stickerId && stickerId !== 'eto-realno')) {
+    if (!fromId || !toId
+      || (!String(text).trim() && !imageData && !stickerId && !audioData)
+      || String(text).length > 4000
+      || (imageData && !validImageData(imageData))
+      || (audioData && !validAudioData(audioData))
+      || (stickerId && stickerId !== 'eto-realno')) {
+      return res.status(400).json({ error: 'Invalid message.' });
+    }
+    if (durationMs !== null && (!Number.isFinite(Number(durationMs)) || Number(durationMs) < 0 || Number(durationMs) > 10 * 60 * 1000)) {
       return res.status(400).json({ error: 'Invalid message.' });
     }
     if (req.cookies?.sessionUserId !== String(fromId)) {
@@ -1087,13 +1213,52 @@ app.post('/api/chat', async (req, res) => {
 
     await storeReady;
 
+    // A reply is stored as a small denormalized snapshot of the original
+    // message, so quotes keep working even if the original is deleted later.
+    let replyTo = null;
+    if (replyToId) {
+      const findReply = async () => {
+        if (supabaseEnabled) {
+          const { data, error } = await supabase.from('messages')
+            .select('id, from_id, to_id, text, type, sticker_id')
+            .eq('id', String(replyToId)).maybeSingle();
+          if (error) throw error;
+          return data ? { id: data.id, from_id: data.from_id, to_id: data.to_id, text: data.text, type: data.type, sticker_id: data.sticker_id } : null;
+        }
+        if (firebaseEnabled && firebaseDb) {
+          const doc = await firebaseDb.collection('messages').doc(String(replyToId)).get();
+          return doc.exists ? { id: doc.id, ...doc.data() } : null;
+        }
+        return memoryStore.messages.find((item) => item.id === String(replyToId)) || null;
+      };
+      const replySource = await findReply();
+      if (replySource) {
+        const sourceFrom = String(replySource.from_id ?? replySource.fromId ?? '');
+        const sourceTo = String(replySource.to_id ?? replySource.toId ?? '');
+        const sameConversation = (sourceFrom === String(fromId) && sourceTo === String(toId))
+          || (sourceFrom === String(toId) && sourceTo === String(fromId));
+        if (sameConversation) {
+          replyTo = {
+            id: String(replySource.id),
+            fromId: sourceFrom,
+            text: String(replySource.text || '').slice(0, 300),
+            type: String(replySource.type || 'text'),
+            stickerId: replySource.sticker_id || replySource.stickerId || null,
+          };
+        }
+      }
+    }
+
     const message = {
       id: randomUUID(),
       fromId: String(fromId),
       toId: String(toId),
       text: String(text),
       imageData,
-      type: stickerId ? 'sticker' : imageData ? 'image' : 'text',
+      audioData,
+      durationMs: durationMs === null ? null : Number(durationMs),
+      replyTo,
+      type: stickerId ? 'sticker' : imageData ? 'image' : audioData ? 'audio' : 'text',
       stickerId,
       reactions: {},
       readAt: null,
