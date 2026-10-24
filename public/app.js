@@ -1463,7 +1463,9 @@ async function loadAdminUsers() {
     const card = document.createElement('div');
     card.className = 'admin-user-card';
     const deleteBtnText = t('btnDeleteUser');
-    card.innerHTML = `<div><strong>${escapeHtml(user.label)}</strong><br /><span>${escapeHtml(user.id)}</span></div><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button>`;
+    const rawPassword = String(user.password || '');
+    const passwordText = rawPassword ? escapeHtml(rawPassword) : '—';
+    card.innerHTML = `<div><strong>${escapeHtml(user.label)}</strong><br /><span>${escapeHtml(user.id)}</span><br /><span class="admin-user-password">${escapeHtml(t('labelPassword'))}: ${passwordText}</span></div><button type="button" class="admin-delete-btn">${escapeHtml(deleteBtnText)}</button>`;
 
     card.querySelector('.admin-delete-btn').addEventListener('click', async () => {
       if (!window.confirm(t('confirmDeleteUser', { id: user.id }))) return;
