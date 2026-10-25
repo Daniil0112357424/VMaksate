@@ -1419,31 +1419,61 @@ app.post('/api/chat', async (req, res) => {
     await storeReady;
 
     if (isGroup) {
-      const chat = memoryStore.chats.find((c) => String(c.id) === groupChatId);
-      if (!chat || chat.type !== 'group') {
-        return res.status(400).json({ error: 'Group chat not found.' });
+      let memberIds;
+      let blockedIds;
+      if (supabaseEnabled) {
+        const { data: chat, error: chatError } = await supabase.from('chats').select('id').eq('id', groupChatId).maybeSingle();
+        if (chatError) throw chatError;
+        if (!chat) return res.status(400).json({ error: 'Group chat not found.' });
+        const [
+          { data: members, error: membersError },
+          { data: blocked, error: blockedError },
+        ] = await Promise.all([
+          supabase.from('chat_members').select('user_id').eq('chat_id', groupChatId),
+          supabase.from('user_blocks').select('blocked_id').eq('blocker_id', senderId),
+        ]);
+        if (membersError || blockedError) throw membersError || blockedError;
+        memberIds = (members || []).map((member) => String(member.user_id));
+        blockedIds = new Set((blocked || []).map((entry) => String(entry.blocked_id)));
+      } else {
+        const chat = memoryStore.chats.find((c) => String(c.id) === groupChatId);
+        if (!chat || chat.type !== 'group') {
+          return res.status(400).json({ error: 'Group chat not found.' });
+        }
+        memberIds = getChatMemberIds(groupChatId);
+        blockedIds = getBlockedByUser(senderId);
       }
-      if (!getChatMemberIds(groupChatId).includes(senderId)) {
+      if (!memberIds.includes(senderId)) {
         return res.status(403).json({ error: 'You are not a member of this group.' });
       }
       // Blocked members cannot send to the group.
-      if (getBlockedByUser(senderId).size > 0) {
-        const blocked = getBlockedByUser(senderId);
-        const members = getChatMemberIds(groupChatId);
-        if (members.some((m) => blocked.has(m))) {
-          return res.status(403).json({ error: 'You have blocked a member of this group.' });
-        }
+      if (memberIds.some((memberId) => blockedIds.has(memberId))) {
+        return res.status(403).json({ error: 'You have blocked a member of this group.' });
       }
     } else {
       // Direct message: neither user may have blocked the other.
-      if (isUserBlocked(senderId, targetId) || isUserBlocked(targetId, senderId)) {
+      let blocked = isUserBlocked(senderId, targetId) || isUserBlocked(targetId, senderId);
+      if (supabaseEnabled) {
+        const [
+          { data: senderBlock, error: senderBlockError },
+          { data: recipientBlock, error: recipientBlockError },
+        ] = await Promise.all([
+          supabase.from('user_blocks').select('blocker_id').eq('blocker_id', senderId).eq('blocked_id', targetId).maybeSingle(),
+          supabase.from('user_blocks').select('blocker_id').eq('blocker_id', targetId).eq('blocked_id', senderId).maybeSingle(),
+        ]);
+        if (senderBlockError || recipientBlockError) throw senderBlockError || recipientBlockError;
+        blocked = Boolean(senderBlock || recipientBlock);
+      }
+      if (blocked) {
         return res.status(403).json({ error: 'You cannot message this user.' });
       }
-      if (!memoryStore.users.some((user) => user.id === senderId)) {
-        ensureUser(senderId, senderId);
-      }
-      if (!memoryStore.users.some((user) => user.id === targetId)) {
-        ensureUser(targetId, targetId);
+      if (!supabaseEnabled) {
+        if (!memoryStore.users.some((user) => user.id === senderId)) {
+          ensureUser(senderId, senderId);
+        }
+        if (!memoryStore.users.some((user) => user.id === targetId)) {
+          ensureUser(targetId, targetId);
+        }
       }
     }
 
@@ -1829,33 +1859,69 @@ app.get('/api/chats', asyncHandler(async (req, res) => {
     if (membershipsError) throw membershipsError;
     const chatIds = (memberships || []).map((m) => String(m.chat_id));
     if (chatIds.length) {
-      const { data: groupChats, error: groupChatsError } = await supabase
-        .from('chats').select('*').in('id', chatIds);
-      if (groupChatsError) throw groupChatsError;
+      const [
+        { data: groupChats, error: groupChatsError },
+        { data: allMembers, error: allMembersError },
+        { data: groupMessages, error: groupMessagesError },
+      ] = await Promise.all([
+        supabase.from('chats').select('*').in('id', chatIds),
+        supabase.from('chat_members').select('chat_id').in('chat_id', chatIds),
+        supabase.from('messages')
+          .select('id, chat_id, from_id, to_id, text, type, sticker_id, created_at')
+          .in('chat_id', chatIds)
+          .order('created_at', { ascending: false }),
+      ]);
+      if (groupChatsError || allMembersError || groupMessagesError) {
+        throw groupChatsError || allMembersError || groupMessagesError;
+      }
+      const memberCounts = new Map();
+      (allMembers || []).forEach((member) => {
+        const id = String(member.chat_id);
+        memberCounts.set(id, (memberCounts.get(id) || 0) + 1);
+      });
+      const latestGroupMessages = new Map();
+      (groupMessages || []).forEach((message) => {
+        const id = String(message.chat_id);
+        if (!latestGroupMessages.has(id) && message.type !== 'call') {
+          latestGroupMessages.set(id, toAppMessage(message));
+        }
+      });
       (groupChats || []).forEach((chat) => {
+        const id = String(chat.id);
         chats.push({
-          id: String(chat.id), type: 'group', name: chat.name || 'Групповой чат',
+          id, type: 'group', name: chat.name || 'Групповой чат',
           avatarData: chat.avatar_data || null, createdBy: String(chat.created_by || ''),
           createdAt: String(chat.created_at), pinnedAt: chat.pinned_at || null,
-          memberCount: chatIds.filter((id) => id === String(chat.id)).length,
+          memberCount: memberCounts.get(id) || 0,
+          lastMessage: latestGroupMessages.get(id) || null,
         });
       });
     }
     // Direct conversations derived from messages.
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
-      supabase.from('messages').select('from_id, to_id, created_at, text').eq('from_id', userId).is('chat_id', null),
-      supabase.from('messages').select('from_id, to_id, created_at, text').eq('to_id', userId).is('chat_id', null),
+      supabase.from('messages').select('id, from_id, to_id, created_at, text, type, sticker_id').eq('from_id', userId).is('chat_id', null),
+      supabase.from('messages').select('id, from_id, to_id, created_at, text, type, sticker_id').eq('to_id', userId).is('chat_id', null),
     ]);
     if (sentError || receivedError) throw sentError || receivedError;
     const directPartners = new Set();
+    const latestDirectMessages = new Map();
     [...(sent || []), ...(received || [])].forEach((message) => {
       const partner = String(message.from_id) === userId ? String(message.to_id) : String(message.from_id);
-      if (partner !== userId) directPartners.add(partner);
+      if (partner === userId) return;
+      directPartners.add(partner);
+      if (message.type === 'call') return;
+      const latest = latestDirectMessages.get(partner);
+      if (!latest || Date.parse(message.created_at) > Date.parse(latest.createdAt)) {
+        latestDirectMessages.set(partner, toAppMessage(message));
+      }
     });
-    const blockedByMe = getBlockedByUser(userId);
     directPartners.forEach((partnerId) => {
-      if (blockedByMe.has(partnerId)) return;
-      chats.push({ id: `direct::${partnerId}`, type: 'direct', partnerId });
+      chats.push({
+        id: `direct::${partnerId}`,
+        type: 'direct',
+        partnerId,
+        lastMessage: latestDirectMessages.get(partnerId) || null,
+      });
     });
   } else {
     const blockedByMe = getBlockedByUser(userId);
@@ -1875,24 +1941,23 @@ app.get('/api/chats', asyncHandler(async (req, res) => {
 
   // Attach last message per chat.
   const me = String(userId);
-  chats.forEach((chat) => {
-    let last = null;
-    if (chat.type === 'direct') {
-      last = lastMessageForConversation(chat.partnerId, me);
-    } else {
-      last = lastMessageForGroup(chat.id);
-    }
-    if (last) {
-      chat.lastMessage = {
-        id: last.id,
-        fromId: last.fromId,
-        text: last.text,
-        type: last.type || 'text',
-        createdAt: last.createdAt,
-        stickerId: last.stickerId || null,
-      };
-    }
-  });
+  if (!supabaseEnabled) {
+    chats.forEach((chat) => {
+      const last = chat.type === 'direct'
+        ? lastMessageForConversation(chat.partnerId, me)
+        : lastMessageForGroup(chat.id);
+      if (last) {
+        chat.lastMessage = {
+          id: last.id,
+          fromId: last.fromId,
+          text: last.text,
+          type: last.type || 'text',
+          createdAt: last.createdAt,
+          stickerId: last.stickerId || null,
+        };
+      }
+    });
+  }
   chats.sort((a, b) => {
     const pa = a.pinnedAt ? 1 : 0;
     const pb = b.pinnedAt ? 1 : 0;
@@ -1986,18 +2051,20 @@ app.get('/api/chats/:chatId', async (req, res) => {
 
   let chat, members;
   if (supabaseEnabled) {
-    const chatData = (await supabase.from('chats').select('*').eq('id', chatId).maybeSingle()).data;
+    const { data: chatData, error: chatError } = await supabase.from('chats').select('*').eq('id', chatId).maybeSingle();
+    if (chatError) throw chatError;
     if (!chatData) return res.status(404).json({ error: 'Chat not found.' });
-    chat = { id: String(chatData.id), type: 'group', name: chatData.name, avatarData: chatData.avatar_data, createdBy: String(chatData.created_by), createdAt: String(chatData.createdAt), pinnedAt: chatData.pinned_at };
-    const memberData = (await supabase.from('chat_members').select('user_id, role').eq('chat_id', chatId)).data || [];
-    members = memberData.map((m) => ({ userId: String(m.user_id), role: m.role }));
+    chat = { id: String(chatData.id), type: 'group', name: chatData.name, avatarData: chatData.avatar_data, createdBy: String(chatData.created_by), createdAt: String(chatData.created_at), pinnedAt: chatData.pinned_at };
+    const { data: memberData, error: membersError } = await supabase.from('chat_members').select('user_id, role').eq('chat_id', chatId);
+    if (membersError) throw membersError;
+    members = (memberData || []).map((m) => ({ userId: String(m.user_id), role: m.role }));
   } else {
     chat = memoryStore.chats.find((c) => String(c.id) === chatId);
     if (!chat) return res.status(404).json({ error: 'Chat not found.' });
     members = getChatMembers(chatId).map((m) => ({ userId: String(m.userId), role: m.role }));
   }
 
-  if (!getChatMemberIds(chatId).includes(userId)) {
+  if (!members.some((member) => member.userId === userId)) {
     return res.status(403).json({ error: 'You are not a member of this group.' });
   }
 
