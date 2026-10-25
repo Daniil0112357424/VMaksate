@@ -63,6 +63,7 @@ const translations = {
     errBlockUser: 'Не удалось изменить блокировку.',
     errCreateGroup: 'Не удалось создать группу.',
     errSendMessage: 'Не удалось отправить сообщение.',
+    errEditMessage: 'Не удалось изменить сообщение.',
     errGroupInfo: 'Не удалось загрузить информацию о группе.',
     errExport: 'Не удалось экспортировать чат.',
     errSendSticker: 'Не удалось отправить стикер.',
@@ -84,6 +85,10 @@ const translations = {
     deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
     reactionHeart: 'Сердце', reactionLike: 'Нравится', reactionPoop: 'Какашка',
     messageActionsTitle: 'Действия с сообщением',
+    replyMessage: 'Ответить',
+    editMessage: 'Редактировать',
+    saveChanges: 'Сохранить',
+    cancelEdit: 'Отмена',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -165,6 +170,7 @@ const translations = {
     errBlockUser: 'Unable to update the block.',
     errCreateGroup: 'Unable to create the group.',
     errSendMessage: 'Unable to send the message.',
+    errEditMessage: 'Unable to edit the message.',
     errGroupInfo: 'Unable to load group information.',
     errExport: 'Unable to export the chat.',
     errSendSticker: 'Unable to send the sticker.',
@@ -186,6 +192,10 @@ const translations = {
     deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
     reactionHeart: 'Heart', reactionLike: 'Like', reactionPoop: 'Poop',
     messageActionsTitle: 'Message actions',
+    replyMessage: 'Reply',
+    editMessage: 'Edit',
+    saveChanges: 'Save',
+    cancelEdit: 'Cancel',
 
     // Admin page
     adminTitle: 'Admin Panel',
@@ -267,6 +277,7 @@ const translations = {
     errBlockUser: 'No se pudo actualizar el bloqueo.',
     errCreateGroup: 'No se pudo crear el grupo.',
     errSendMessage: 'No se pudo enviar el mensaje.',
+    errEditMessage: 'No se pudo editar el mensaje.',
     errGroupInfo: 'No se pudo cargar la información del grupo.',
     errExport: 'No se pudo exportar el chat.',
     errSendSticker: 'No se pudo enviar el sticker.',
@@ -288,6 +299,10 @@ const translations = {
     deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
     reactionHeart: 'Corazón', reactionLike: 'Me gusta', reactionPoop: 'Caca',
     messageActionsTitle: 'Acciones del mensaje',
+    replyMessage: 'Responder',
+    editMessage: 'Editar',
+    saveChanges: 'Guardar',
+    cancelEdit: 'Cancelar',
 
     // Admin page
     adminTitle: 'Panel de Admin',
@@ -429,6 +444,10 @@ const chatSearchStatus = document.getElementById('chatSearchStatus');
 const chatSearchPrev = document.getElementById('chatSearchPrev');
 const chatSearchNext = document.getElementById('chatSearchNext');
 const chatSearchClose = document.getElementById('chatSearchClose');
+const replyBar = document.getElementById('replyBar');
+const replyBarName = document.getElementById('replyBarName');
+const replyBarText = document.getElementById('replyBarText');
+const replyCancelBtn = document.getElementById('replyCancelBtn');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -470,6 +489,7 @@ const profileAvatarPreview = document.getElementById('profileAvatarPreview');
 const closeProfileBtn = document.getElementById('closeProfileBtn');
 let pendingMessageImage = null;
 let pendingAvatarImage = null;
+let pendingReplyMessage = null;
 
 function renderCurrentUserBadge() {
   if (!currentUserBadge) return;
@@ -736,6 +756,7 @@ function renderUsers(users) {
     item.appendChild(meta);
 
     item.addEventListener('click', () => {
+      setReplyToMessage(null);
       selectedPartner = user;
       updateChatHeader(user);
       document.querySelector('.chat-panel')?.classList.remove('no-chat');
@@ -1128,10 +1149,30 @@ let mobileActionsTimeout = null;
 function getMessagesSignature(messages) {
   return JSON.stringify(messages.map((message) => [
     message.id,
+    message.text,
+    message.editedAt,
+    message.replyTo,
     message.deliveredAt,
     message.readAt,
     message.reactions,
   ]));
+}
+
+function setReplyToMessage(message) {
+  pendingReplyMessage = message || null;
+  if (!replyBar || !replyBarName || !replyBarText) return;
+  if (!message) {
+    replyBar.classList.add('hidden');
+    replyBarName.textContent = '';
+    replyBarText.textContent = '';
+    return;
+  }
+  replyBarName.textContent = message.fromId === currentUser?.id
+    ? t('previewYou')
+    : selectedPartner?.type === 'group' ? message.fromId : selectedPartner?.label || message.fromId;
+  replyBarText.textContent = getLastMessagePreview(message) || message.text || '';
+  replyBar.classList.remove('hidden');
+  messageInput?.focus();
 }
 
 async function loadMessages() {
@@ -1216,6 +1257,7 @@ async function loadMessages() {
     const isMe = item.fromId === currentUser.id;
     const div = document.createElement('div');
     div.className = `message ${item.type === 'call' ? 'call-message' : isMe ? 'me' : 'other'}`;
+    div.dataset.messageId = String(item.id);
     div.dataset.searchText = String(item.text || '').toLowerCase();
 
     if (item.type === 'call') {
@@ -1235,6 +1277,29 @@ async function loadMessages() {
       div.appendChild(sender);
     }
 
+    if (item.replyTo) {
+      const quote = document.createElement('button');
+      quote.type = 'button';
+      quote.className = 'message-quote';
+      const author = document.createElement('span');
+      author.className = 'message-quote-author';
+      author.textContent = item.replyTo.fromId === currentUser.id
+        ? t('previewYou')
+        : selectedPartner.type === 'group' ? item.replyTo.fromId : selectedPartner.label || item.replyTo.fromId;
+      const quotedText = document.createElement('span');
+      quotedText.className = 'message-quote-text';
+      quotedText.textContent = item.replyTo.text || getLastMessagePreview(item.replyTo);
+      quote.append(author, quotedText);
+      quote.addEventListener('click', () => {
+        const original = Array.from(messagesBox.querySelectorAll('.message'))
+          .find((message) => message.dataset.messageId === String(item.replyTo.id));
+        original?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        original?.classList.add('search-current');
+        setTimeout(() => original?.classList.remove('search-current'), 1200);
+      });
+      div.appendChild(quote);
+    }
+
     const stickerUrl = item.type === 'sticker' ? (item.imageData || '/stickers/eto-realno.jpg') : null;
     if (stickerUrl) {
       const sticker = document.createElement('img');
@@ -1244,11 +1309,12 @@ async function loadMessages() {
       div.appendChild(sticker);
     }
 
+    let messageText = null;
     if (item.text && item.type !== 'sticker') {
-      const text = document.createElement('div');
-      text.className = 'message-text';
-      text.textContent = item.text;
-      div.appendChild(text);
+      messageText = document.createElement('div');
+      messageText.className = 'message-text';
+      messageText.textContent = item.text;
+      div.appendChild(messageText);
     }
 
     if (item.imageData && item.type !== 'sticker') {
@@ -1287,6 +1353,18 @@ async function loadMessages() {
       event.stopPropagation();
       const open = actionsMenu.classList.toggle('hidden') === false;
       actionsToggle.setAttribute('aria-expanded', String(open));
+      actionsMenu.classList.remove('opens-up');
+      if (open) {
+        const menuRect = actionsMenu.getBoundingClientRect();
+        const messageRect = div.getBoundingClientRect();
+        const messagesRect = messagesBox.getBoundingClientRect();
+        const belowSpace = messagesRect.bottom - messageRect.bottom;
+        const aboveSpace = messageRect.top - messagesRect.top;
+        const fitsAbove = aboveSpace >= menuRect.height + 20;
+        if (menuRect.bottom > messagesRect.bottom - 8 && (fitsAbove || aboveSpace > belowSpace)) {
+          actionsMenu.classList.add('opens-up');
+        }
+      }
       if (!open && window.matchMedia('(hover: none)').matches) {
         clearTimeout(mobileActionsTimeout);
         mobileActionsTimeout = setTimeout(() => div.classList.remove('actions-visible'), 4000);
@@ -1307,25 +1385,65 @@ async function loadMessages() {
 
     const reactionSummary = document.createElement('div');
     reactionSummary.className = 'message-reactions';
+    const reactionButtons = [];
+    const summaryButtons = [];
     const renderReactionSummary = () => {
       reactionSummary.replaceChildren();
       reactionOptions.forEach(({ key, emoji, label }) => {
         const users = Array.isArray(item.reactions?.[key]) ? item.reactions[key] : [];
         if (!users.length) return;
-        const badge = document.createElement('span');
+        const badge = document.createElement('button');
+        badge.type = 'button';
         badge.className = 'message-reaction-summary';
+        const active = users.includes(currentUser.id);
+        badge.classList.toggle('active', active);
         badge.setAttribute('aria-label', `${label}: ${users.length}`);
+        badge.setAttribute('aria-pressed', String(active));
         badge.textContent = `${emoji} ${users.length}`;
+        badge.addEventListener('click', () => toggleReaction(key));
+        summaryButtons.push(badge);
         reactionSummary.appendChild(badge);
       });
       reactionSummary.classList.toggle('hidden', reactionSummary.childElementCount === 0);
     };
-    renderReactionSummary();
-    div.appendChild(reactionSummary);
 
     const reactions = document.createElement('div');
     reactions.className = 'message-reaction-picker';
-    const reactionButtons = [];
+    const updateReactionButtons = () => {
+      reactionButtons.forEach(({ button, key, emoji, label }) => {
+        const users = Array.isArray(item.reactions?.[key]) ? item.reactions[key] : [];
+        const active = users.includes(currentUser.id);
+        button.disabled = false;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-label', `${label}: ${users.length}`);
+        button.setAttribute('aria-pressed', String(active));
+        button.textContent = emoji;
+      });
+    };
+    const toggleReaction = async (key) => {
+      [...reactionButtons.map(({ button }) => button), ...summaryButtons].forEach((button) => {
+        button.disabled = true;
+      });
+      try {
+        const response = await fetch('/api/chat/reactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageId: item.id, reaction: key }),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to update reaction.');
+        item.reactions = result.reactions;
+        summaryButtons.length = 0;
+        updateReactionButtons();
+        renderReactionSummary();
+        renderedMessagesSignature = getMessagesSignature(messages);
+      } catch (error) {
+        [...reactionButtons.map(({ button }) => button), ...summaryButtons].forEach((button) => {
+          button.disabled = false;
+        });
+        alert(error.message);
+      }
+    };
     reactionOptions.forEach(({ key, emoji, label }) => {
       const users = Array.isArray(reactionUsers[key]) ? reactionUsers[key] : [];
       const button = document.createElement('button');
@@ -1337,32 +1455,23 @@ async function loadMessages() {
       button.setAttribute('aria-pressed', String(users.includes(currentUser.id)));
       button.textContent = emoji;
       reactionButtons.push({ button, key, emoji, label });
-      button.addEventListener('click', async () => {
-        try {
-          const response = await fetch('/api/chat/reactions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messageId: item.id, reaction: key }),
-          });
-          const result = await response.json();
-          if (!response.ok) throw new Error(result.error || 'Unable to update reaction.');
-          item.reactions = result.reactions;
-          reactionButtons.forEach(({ button: reactionButton, key: reactionKey, emoji: reactionEmoji, label: reactionLabel }) => {
-            const usersForReaction = Array.isArray(item.reactions[reactionKey]) ? item.reactions[reactionKey] : [];
-            const isActive = usersForReaction.includes(currentUser.id);
-            reactionButton.classList.toggle('active', isActive);
-            reactionButton.setAttribute('aria-label', `${reactionLabel}: ${usersForReaction.length}`);
-            reactionButton.setAttribute('aria-pressed', String(isActive));
-            reactionButton.textContent = reactionEmoji;
-          });
-          renderReactionSummary();
-          renderedMessagesSignature = getMessagesSignature(messages);
-        } catch (error) {
-          alert(error.message);
-        }
-      });
+      button.addEventListener('click', () => toggleReaction(key));
       reactions.appendChild(button);
     });
+
+    renderReactionSummary();
+    div.appendChild(reactionSummary);
+
+    const replyButton = document.createElement('button');
+    replyButton.type = 'button';
+    replyButton.className = 'message-copy-btn';
+    replyButton.textContent = t('replyMessage');
+    replyButton.addEventListener('click', () => {
+      setReplyToMessage(item);
+      actionsMenu.classList.add('hidden');
+      actionsToggle.setAttribute('aria-expanded', 'false');
+    });
+    actionsMenu.appendChild(replyButton);
 
     if (isMe && item.type !== 'call') {
       const status = document.createElement('div');
@@ -1388,6 +1497,59 @@ async function loadMessages() {
           alert(error.message);
         }
       });
+      if (item.type === 'text') {
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.className = 'message-edit-btn';
+        editButton.textContent = t('editMessage');
+        editButton.addEventListener('click', () => {
+          const form = document.createElement('form');
+          form.className = 'message-edit-form';
+          const input = document.createElement('textarea');
+          input.className = 'message-edit-input';
+          input.maxLength = 4000;
+          input.value = item.text || '';
+          const controls = document.createElement('div');
+          controls.className = 'message-edit-controls';
+          const cancel = document.createElement('button');
+          cancel.type = 'button';
+          cancel.className = 'message-edit-cancel';
+          cancel.textContent = t('cancelEdit');
+          const save = document.createElement('button');
+          save.type = 'submit';
+          save.className = 'message-edit-save';
+          save.textContent = t('saveChanges');
+          controls.append(cancel, save);
+          form.append(input, controls);
+          messageText?.replaceWith(form);
+          actionsMenu.classList.add('hidden');
+          actionsToggle.setAttribute('aria-expanded', 'false');
+          input.focus();
+
+          cancel.addEventListener('click', () => form.replaceWith(messageText));
+          form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            save.disabled = true;
+            try {
+              const response = await fetch(`/api/chat/${encodeURIComponent(item.id)}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: input.value }),
+              });
+              const result = await response.json();
+              if (!response.ok) throw new Error(result.error || t('errEditMessage'));
+              item.text = result.message?.text || input.value.trim();
+              item.editedAt = result.message?.editedAt || result.message?.edited_at || new Date().toISOString();
+              renderedMessagesSignature = '';
+              await loadMessages();
+            } catch (error) {
+              save.disabled = false;
+              alert(error.message || t('errEditMessage'));
+            }
+          });
+        });
+        actionsMenu.appendChild(editButton);
+      }
       actionsMenu.appendChild(deleteButton);
     }
 
@@ -1423,6 +1585,7 @@ async function sendMessage() {
       text,
       imageData: pendingMessageImage,
     };
+    if (pendingReplyMessage) body.replyToId = pendingReplyMessage.id;
     if (selectedPartner.type === 'group') body.chatId = selectedPartner.chatId || selectedPartner.id;
     else body.toId = selectedPartner.partnerId || selectedPartner.id;
     const response = await fetch('/api/chat', {
@@ -1437,6 +1600,7 @@ async function sendMessage() {
 
     messageInput.value = '';
     pendingMessageImage = null;
+    setReplyToMessage(null);
     if (imageInput) imageInput.value = '';
     attachmentPreview?.classList.add('hidden');
     await loadMessages();
@@ -1908,6 +2072,7 @@ if (logoutBtn) {
 }
 
 if (searchInput && userList && messagesBox) {
+  replyCancelBtn?.addEventListener('click', () => setReplyToMessage(null));
   searchInput.addEventListener('input', searchUsers);
   searchBtn?.addEventListener('click', searchUsers);
   stickerBtn?.addEventListener('click', (event) => {
