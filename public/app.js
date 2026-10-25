@@ -63,6 +63,15 @@ const translations = {
     attachFile: 'Прикрепить файл',
     emojiTitle: 'Эмодзи',
     stickersTitle: 'Стикеры',
+    voicePermissionError: 'Разрешите доступ к микрофону, чтобы записать сообщение.',
+    voiceUnsupportedError: 'Запись голосовых сообщений не поддерживается в этом браузере.',
+    voiceEmptyError: 'Не удалось записать аудио. Попробуйте ещё раз.',
+    voiceSendError: 'Не удалось отправить голосовое сообщение.',
+    voiceTooLargeError: 'Запись слишком длинная или превышает лимит размера.',
+    voiceMessage: 'Голосовое сообщение',
+    voiceRecordStart: 'Записать голосовое сообщение',
+    voiceCancel: 'Отменить запись',
+    voiceStop: 'Отправить голосовое сообщение',
     errLoadChats: 'Не удалось загрузить чаты.',
     errSearchUsers: 'Не удалось выполнить поиск.',
     errBlockUser: 'Не удалось изменить блокировку.',
@@ -175,6 +184,15 @@ const translations = {
     attachFile: 'Attach file',
     emojiTitle: 'Emoji',
     stickersTitle: 'Stickers',
+    voicePermissionError: 'Allow microphone access to record a voice message.',
+    voiceUnsupportedError: 'Voice recording is not supported by this browser.',
+    voiceEmptyError: 'No audio was recorded. Please try again.',
+    voiceSendError: 'Unable to send the voice message.',
+    voiceTooLargeError: 'The recording is too long or exceeds the size limit.',
+    voiceMessage: 'Voice message',
+    voiceRecordStart: 'Record a voice message',
+    voiceCancel: 'Cancel recording',
+    voiceStop: 'Send voice message',
     errLoadChats: 'Unable to load chats.',
     errSearchUsers: 'Unable to search.',
     errBlockUser: 'Unable to update the block.',
@@ -287,6 +305,15 @@ const translations = {
     attachFile: 'Adjuntar archivo',
     emojiTitle: 'Emojis',
     stickersTitle: 'Stickers',
+    voicePermissionError: 'Permita el acceso al micrófono para grabar un mensaje de voz.',
+    voiceUnsupportedError: 'Este navegador no admite la grabación de voz.',
+    voiceEmptyError: 'No se grabó audio. Inténtelo de nuevo.',
+    voiceSendError: 'No se pudo enviar el mensaje de voz.',
+    voiceTooLargeError: 'La grabación es demasiado larga o supera el límite.',
+    voiceMessage: 'Mensaje de voz',
+    voiceRecordStart: 'Grabar un mensaje de voz',
+    voiceCancel: 'Cancelar grabación',
+    voiceStop: 'Enviar mensaje de voz',
     errLoadChats: 'No se pudieron cargar los chats.',
     errSearchUsers: 'No se pudo realizar la búsqueda.',
     errBlockUser: 'No se pudo actualizar el bloqueo.',
@@ -479,6 +506,11 @@ const callStatus = document.getElementById('callStatus');
 const acceptCallBtn = document.getElementById('acceptCallBtn');
 const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
+const voiceBtn = document.getElementById('voiceBtn');
+const recordingBar = document.getElementById('recordingBar');
+const recordingTime = document.getElementById('recordingTime');
+const voiceCancelBtn = document.getElementById('voiceCancelBtn');
+const voiceStopBtn = document.getElementById('voiceStopBtn');
 const fileInput = document.getElementById('fileInput');
 const attachmentPreview = document.getElementById('attachmentPreview');
 const attachmentPreviewImage = document.getElementById('attachmentPreviewImage');
@@ -504,6 +536,14 @@ let pendingMessageImage = null;
 let pendingMessageFile = null;
 let pendingAvatarImage = null;
 let pendingReplyMessage = null;
+let voiceRecorder = null;
+let voiceStream = null;
+let voiceChunks = [];
+let voiceStartedAt = 0;
+let voiceTimer = null;
+let voiceCancelled = false;
+let voiceFinishing = false;
+let voiceErrored = false;
 
 function renderCurrentUserBadge() {
   if (!currentUserBadge) return;
@@ -586,6 +626,11 @@ function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatAudioDuration(seconds) {
+  const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0));
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')}`;
 }
 
 function applyLanguage(lang) {
@@ -1346,6 +1391,16 @@ async function loadMessages() {
       div.appendChild(fileLink);
     }
 
+    if (item.type === 'audio' && item.audioData) {
+      const audio = document.createElement('audio');
+      audio.className = 'message-audio-player';
+      audio.controls = true;
+      audio.preload = 'metadata';
+      audio.src = item.audioData;
+      audio.setAttribute('aria-label', t('voiceMessage'));
+      div.appendChild(audio);
+    }
+
     if (item.createdAt) {
       const time = document.createElement('div');
       time.className = 'message-time';
@@ -1585,6 +1640,164 @@ async function loadMessages() {
   unreadUsers.delete(selectedPartner.id);
 
   if (wasAtBottom) messagesBox.scrollTop = messagesBox.scrollHeight;
+}
+
+function stopVoiceTracks() {
+  voiceStream?.getTracks().forEach((track) => track.stop());
+  voiceStream = null;
+}
+
+function resetVoiceRecorder() {
+  clearInterval(voiceTimer);
+  voiceTimer = null;
+  stopVoiceTracks();
+  voiceRecorder = null;
+  voiceChunks = [];
+  voiceStartedAt = 0;
+  voiceFinishing = false;
+  voiceCancelled = false;
+  voiceErrored = false;
+  voiceBtn?.classList.remove('is-recording');
+  voiceBtn?.removeAttribute('disabled');
+  voiceStopBtn?.removeAttribute('disabled');
+  voiceCancelBtn?.removeAttribute('disabled');
+  recordingBar?.classList.add('hidden');
+}
+
+function readBlobAsDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error(t('voiceSendError')));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function sendVoiceMessage(blob, durationMs, mimeType) {
+  if (blob.size > 5 * 1024 * 1024) throw new Error(t('voiceTooLargeError'));
+  const allowedMimeTypes = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/x-m4a', 'audio/aac'];
+  const mime = String(mimeType || blob.type || 'audio/webm').split(';')[0].toLowerCase();
+  if (!allowedMimeTypes.includes(mime)) throw new Error(t('voiceUnsupportedError'));
+  const dataUrl = await readBlobAsDataUrl(blob);
+  const audioData = `data:${mime};base64,${dataUrl.slice(dataUrl.indexOf(',') + 1)}`;
+  const body = { fromId: currentUser.id, audioData, durationMs };
+  if (pendingReplyMessage) body.replyToId = pendingReplyMessage.id;
+  if (selectedPartner.type === 'group') body.chatId = selectedPartner.chatId || selectedPartner.id;
+  else body.toId = selectedPartner.partnerId || selectedPartner.id;
+
+  const response = await fetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || t('voiceSendError'));
+  setReplyToMessage(null);
+  renderedMessagesSignature = '';
+  await loadMessages();
+}
+
+async function startVoiceRecording() {
+  if (!currentUser || !selectedPartner) {
+    alert(t('alertSelectPartner'));
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    alert(t('voiceUnsupportedError'));
+    return;
+  }
+  if (voiceRecorder || voiceBtn?.disabled) return;
+
+  voiceBtn.disabled = true;
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const supportedTypes = [
+      'audio/webm;codecs=opus',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+      'audio/webm',
+      'audio/ogg',
+    ];
+    const mimeType = supportedTypes.find((type) => MediaRecorder.isTypeSupported?.(type));
+    voiceRecorder = mimeType
+      ? new MediaRecorder(voiceStream, { mimeType })
+      : new MediaRecorder(voiceStream);
+    voiceChunks = [];
+    voiceCancelled = false;
+    voiceFinishing = false;
+    voiceErrored = false;
+    voiceStartedAt = Date.now();
+    recordingTime.textContent = '0:00';
+    recordingBar?.classList.remove('hidden');
+    voiceBtn.classList.add('is-recording');
+    voiceBtn.disabled = false;
+    voiceRecorder.addEventListener('dataavailable', (event) => {
+      if (event.data?.size) voiceChunks.push(event.data);
+    });
+    voiceRecorder.addEventListener('error', () => {
+      voiceErrored = true;
+      if (voiceRecorder?.state === 'recording') voiceRecorder.stop();
+    }, { once: true });
+    voiceRecorder.addEventListener('stop', async () => {
+      const recorder = voiceRecorder;
+      const chunks = voiceChunks;
+      const durationMs = Math.min(Date.now() - voiceStartedAt, 10 * 60 * 1000);
+      const cancelled = voiceCancelled;
+      const failed = voiceErrored;
+      const blob = new Blob(chunks, { type: recorder?.mimeType || 'audio/webm' });
+      clearInterval(voiceTimer);
+      voiceTimer = null;
+      stopVoiceTracks();
+      voiceBtn?.classList.remove('is-recording');
+      voiceBtn?.setAttribute('disabled', 'true');
+      voiceStopBtn?.setAttribute('disabled', 'true');
+      voiceCancelBtn?.setAttribute('disabled', 'true');
+
+      if (cancelled || failed) {
+        resetVoiceRecorder();
+        if (failed) alert(t('voiceSendError'));
+        return;
+      }
+      if (!blob.size) {
+        resetVoiceRecorder();
+        alert(t('voiceEmptyError'));
+        return;
+      }
+
+      try {
+        await sendVoiceMessage(blob, durationMs, recorder?.mimeType || blob.type);
+      } catch (error) {
+        alert(error.message || t('voiceSendError'));
+      } finally {
+        resetVoiceRecorder();
+      }
+    }, { once: true });
+    voiceRecorder.start();
+    voiceTimer = setInterval(() => {
+      const elapsed = Date.now() - voiceStartedAt;
+      recordingTime.textContent = formatAudioDuration(elapsed / 1000);
+      if (elapsed >= 10 * 60 * 1000 && voiceRecorder?.state === 'recording') {
+        finishVoiceRecording();
+      }
+    }, 250);
+  } catch (error) {
+    resetVoiceRecorder();
+    alert(error.name === 'NotAllowedError' || error.name === 'SecurityError'
+      ? t('voicePermissionError')
+      : error.message || t('voiceUnsupportedError'));
+  }
+}
+
+function finishVoiceRecording(cancel = false) {
+  if (!voiceRecorder || voiceRecorder.state === 'inactive' || voiceFinishing) return;
+  voiceCancelled = cancel;
+  voiceFinishing = true;
+  try {
+    voiceRecorder.stop();
+  } catch (error) {
+    resetVoiceRecorder();
+    alert(error.message || t('voiceSendError'));
+  }
 }
 
 let isSendingMessage = false;
@@ -2110,6 +2323,9 @@ if (logoutBtn) {
 
 if (searchInput && userList && messagesBox) {
   replyCancelBtn?.addEventListener('click', () => setReplyToMessage(null));
+  voiceBtn?.addEventListener('click', startVoiceRecording);
+  voiceStopBtn?.addEventListener('click', () => finishVoiceRecording());
+  voiceCancelBtn?.addEventListener('click', () => finishVoiceRecording(true));
   searchInput.addEventListener('input', searchUsers);
   searchBtn?.addEventListener('click', searchUsers);
   stickerBtn?.addEventListener('click', (event) => {

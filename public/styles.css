@@ -2797,6 +2797,16 @@ textarea {
     border-radius: 18px;
   }
 
+  .recording-bar,
+  .reply-bar {
+    margin-right: 12px;
+    margin-left: 12px;
+  }
+
+  .recording-bar {
+    min-height: 48px;
+  }
+
   .attachment-btn {
     width: 38px;
     height: 38px;
@@ -3212,6 +3222,14 @@ textarea {
   gap: 9px;
   min-width: 218px;
   max-width: 320px;
+}
+
+.message-audio-player {
+  display: block;
+  width: min(300px, 70vw);
+  max-width: 100%;
+  height: 42px;
+  margin-top: 5px;
 }
 
 .message-audio-play {
@@ -3765,15 +3783,3 @@ textarea {
 }
 
 .blocked-list-item .actions { display: flex; gap: 7px; flex-shrink: 0; }
-
-@media (max-width: 720px) {
-  .sidebar {
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    width: 100%;
-    max-width: 320px;
-    transform: translatex(-100%);
-    transition: transform 0.25s var(--ease);
-    z-index: 40;
-  }
-}
