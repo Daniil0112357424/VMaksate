@@ -36,6 +36,7 @@ const translations = {
     previewImage: 'Фото',
     previewSticker: 'Стикер',
     previewVoice: 'Голосовое сообщение',
+    fileMessage: 'Файл',
     previewCall: 'Звонок',
     groupInfo: 'Информация о группе',
     groupChat: 'Групповой чат',
@@ -57,7 +58,11 @@ const translations = {
     groupMembers: 'Участники',
     closeBtnLabel: 'Закрыть',
     copyMessage: 'Копировать',
-    fileTooLarge: 'Файл слишком большой.',
+    fileTooLarge: 'Размер файла не должен превышать 20 МБ.',
+    errReadFile: 'Не удалось прочитать файл.',
+    attachFile: 'Прикрепить файл',
+    emojiTitle: 'Эмодзи',
+    stickersTitle: 'Стикеры',
     errLoadChats: 'Не удалось загрузить чаты.',
     errSearchUsers: 'Не удалось выполнить поиск.',
     errBlockUser: 'Не удалось изменить блокировку.',
@@ -143,6 +148,7 @@ const translations = {
     previewImage: 'Photo',
     previewSticker: 'Sticker',
     previewVoice: 'Voice message',
+    fileMessage: 'File',
     previewCall: 'Call',
     groupInfo: 'Group info',
     groupChat: 'Group chat',
@@ -164,7 +170,11 @@ const translations = {
     groupMembers: 'Members',
     closeBtnLabel: 'Close',
     copyMessage: 'Copy',
-    fileTooLarge: 'File is too large.',
+    fileTooLarge: 'Files must be 20 MB or smaller.',
+    errReadFile: 'Unable to read the file.',
+    attachFile: 'Attach file',
+    emojiTitle: 'Emoji',
+    stickersTitle: 'Stickers',
     errLoadChats: 'Unable to load chats.',
     errSearchUsers: 'Unable to search.',
     errBlockUser: 'Unable to update the block.',
@@ -250,6 +260,7 @@ const translations = {
     previewImage: 'Foto',
     previewSticker: 'Sticker',
     previewVoice: 'Mensaje de voz',
+    fileMessage: 'Archivo',
     previewCall: 'Llamada',
     groupInfo: 'Información del grupo',
     groupChat: 'Chat grupal',
@@ -271,7 +282,11 @@ const translations = {
     groupMembers: 'Miembros',
     closeBtnLabel: 'Cerrar',
     copyMessage: 'Copiar',
-    fileTooLarge: 'El archivo es demasiado grande.',
+    fileTooLarge: 'El archivo no debe superar los 20 MB.',
+    errReadFile: 'No se pudo leer el archivo.',
+    attachFile: 'Adjuntar archivo',
+    emojiTitle: 'Emojis',
+    stickersTitle: 'Stickers',
     errLoadChats: 'No se pudieron cargar los chats.',
     errSearchUsers: 'No se pudo realizar la búsqueda.',
     errBlockUser: 'No se pudo actualizar el bloqueo.',
@@ -464,13 +479,11 @@ const callStatus = document.getElementById('callStatus');
 const acceptCallBtn = document.getElementById('acceptCallBtn');
 const declineCallBtn = document.getElementById('declineCallBtn');
 const endCallBtn = document.getElementById('endCallBtn');
-const imageInput = document.getElementById('imageInput');
+const fileInput = document.getElementById('fileInput');
 const attachmentPreview = document.getElementById('attachmentPreview');
 const attachmentPreviewImage = document.getElementById('attachmentPreviewImage');
 const attachmentPreviewName = document.getElementById('attachmentPreviewName');
 const removeAttachmentBtn = document.getElementById('removeAttachmentBtn');
-const fileInput = document.getElementById('fileInput');
-const emojiBtn = document.getElementById('emojiBtn');
 const emojiMenu = document.getElementById('emojiMenu');
 const stickerBtn = document.getElementById('stickerBtn');
 const stickerMenu = document.getElementById('stickerMenu');
@@ -488,6 +501,7 @@ const profileImageInput = document.getElementById('profileImageInput');
 const profileAvatarPreview = document.getElementById('profileAvatarPreview');
 const closeProfileBtn = document.getElementById('closeProfileBtn');
 let pendingMessageImage = null;
+let pendingMessageFile = null;
 let pendingAvatarImage = null;
 let pendingReplyMessage = null;
 
@@ -563,8 +577,15 @@ function getLastMessagePreview(message) {
   if (message.type === 'image') return t('previewImage');
   if (message.type === 'sticker') return t('previewSticker');
   if (message.type === 'audio') return t('previewVoice');
+  if (message.type === 'file') return t('fileMessage');
   if (message.type === 'call') return t('previewCall');
   return String(message.text || '');
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function applyLanguage(lang) {
@@ -1089,7 +1110,7 @@ function buildEmojiMenu() {
     option.textContent = emoji;
     option.addEventListener('click', () => {
       insertEmoji(emoji);
-      emojiMenu.classList.add('hidden');
+      stickerMenu?.classList.add('hidden');
     });
     emojiMenu.appendChild(option);
   });
@@ -1104,29 +1125,6 @@ async function sendSticker(stickerId) {
     const body = { fromId: currentUser.id, stickerId };
     if (selectedPartner.type === 'group') body.chatId = selectedPartner.chatId || selectedPartner.id;
     else body.toId = selectedPartner.partnerId || selectedPartner.id;
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || t('errSendSticker'));
-    stickerMenu?.classList.add('hidden');
-    await loadMessages();
-  } catch (error) {
-    alert(error.message || t('errSendSticker'));
-  }
-}
-
-async function sendEmojiSticker(emoji) {
-  if (!currentUser || !selectedPartner) {
-    alert(t('alertSelectPartner'));
-    return;
-  }
-  const body = { fromId: currentUser.id, text: emoji };
-  if (selectedPartner.type === 'group') body.chatId = selectedPartner.chatId || selectedPartner.id;
-  else body.toId = selectedPartner.partnerId || selectedPartner.id;
-  try {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1323,6 +1321,29 @@ async function loadMessages() {
       image.src = item.imageData;
       image.alt = '';
       div.appendChild(image);
+    }
+
+    if (item.type === 'file' && item.fileData) {
+      const fileLink = document.createElement('a');
+      fileLink.className = 'message-file';
+      fileLink.href = item.fileData;
+      fileLink.download = item.fileName || 'file';
+      const icon = document.createElement('span');
+      icon.className = 'message-file-icon';
+      icon.textContent = '📎';
+      const info = document.createElement('span');
+      info.className = 'message-file-info';
+      const fileName = document.createElement('span');
+      fileName.className = 'message-file-name';
+      fileName.textContent = item.fileName || 'file';
+      const fileSize = document.createElement('span');
+      fileSize.className = 'message-file-size';
+      const encodedData = item.fileData.slice(item.fileData.indexOf(',') + 1);
+      const size = Math.max(0, Math.floor(encodedData.length * 3 / 4) - (encodedData.endsWith('==') ? 2 : encodedData.endsWith('=') ? 1 : 0));
+      fileSize.textContent = formatFileSize(size);
+      info.append(fileName, fileSize);
+      fileLink.append(icon, info);
+      div.appendChild(fileLink);
     }
 
     if (item.createdAt) {
@@ -1575,7 +1596,7 @@ async function sendMessage() {
   }
 
   const text = messageInput.value.trim();
-  if ((!text && !pendingMessageImage) || isSendingMessage) return;
+  if ((!text && !pendingMessageImage && !pendingMessageFile) || isSendingMessage) return;
 
   isSendingMessage = true;
   sendBtn.disabled = true;
@@ -1585,6 +1606,11 @@ async function sendMessage() {
       text,
       imageData: pendingMessageImage,
     };
+    if (pendingMessageFile) {
+      body.fileData = pendingMessageFile.data;
+      body.fileName = pendingMessageFile.name;
+      body.fileType = pendingMessageFile.type;
+    }
     if (pendingReplyMessage) body.replyToId = pendingReplyMessage.id;
     if (selectedPartner.type === 'group') body.chatId = selectedPartner.chatId || selectedPartner.id;
     else body.toId = selectedPartner.partnerId || selectedPartner.id;
@@ -1600,8 +1626,9 @@ async function sendMessage() {
 
     messageInput.value = '';
     pendingMessageImage = null;
+    pendingMessageFile = null;
     setReplyToMessage(null);
-    if (imageInput) imageInput.value = '';
+    if (fileInput) fileInput.value = '';
     attachmentPreview?.classList.add('hidden');
     await loadMessages();
   } catch (error) {
@@ -1618,6 +1645,16 @@ function readImage(file) {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error('Не удалось прочитать фото.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function readFileData(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || file.size > 20 * 1024 * 1024) return reject(new Error(t('fileTooLarge')));
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error(t('errReadFile')));
     reader.readAsDataURL(file);
   });
 }
@@ -2077,21 +2114,12 @@ if (searchInput && userList && messagesBox) {
   searchBtn?.addEventListener('click', searchUsers);
   stickerBtn?.addEventListener('click', (event) => {
     event.stopPropagation();
-    stickerMenu?.classList.toggle('hidden');
-    emojiMenu?.classList.add('hidden');
-  });
-  emojiBtn?.addEventListener('click', (event) => {
-    event.stopPropagation();
     buildEmojiMenu();
-    emojiMenu?.classList.toggle('hidden');
-    stickerMenu?.classList.add('hidden');
+    stickerMenu?.classList.toggle('hidden');
   });
   document.addEventListener('click', (event) => {
     if (stickerMenu && stickerBtn && !stickerMenu.contains(event.target) && !stickerBtn.contains(event.target)) {
       stickerMenu.classList.add('hidden');
-    }
-    if (emojiMenu && emojiBtn && !emojiMenu.contains(event.target) && !emojiBtn.contains(event.target)) {
-      emojiMenu.classList.add('hidden');
     }
     document.querySelectorAll('.message-actions-menu:not(.hidden)').forEach((menu) => {
       if (menu.contains(event.target)) return;
@@ -2103,9 +2131,6 @@ if (searchInput && userList && messagesBox) {
     }
   });
   etoRealnoSticker?.addEventListener('click', () => sendSticker('eto-realno'));
-  stickerMenu?.querySelectorAll('[data-sticker]').forEach((button) => {
-    button.addEventListener('click', () => sendEmojiSticker(button.dataset.sticker));
-  });
   chatSearchBtn?.addEventListener('click', () => {
     if (!chatSearchBar) return;
     chatSearchBar.classList.toggle('hidden');
@@ -2184,23 +2209,40 @@ if (searchInput && userList && messagesBox) {
   acceptCallBtn?.addEventListener('click', acceptIncomingCall);
   declineCallBtn?.addEventListener('click', declineIncomingCall);
   endCallBtn?.addEventListener('click', () => endCurrentCall());
-  imageInput?.addEventListener('change', async () => {
+  fileInput?.addEventListener('change', async () => {
     try {
-      const file = imageInput.files[0];
-      pendingMessageImage = await readImage(file);
-      attachmentPreviewImage.src = pendingMessageImage;
+      const file = fileInput.files[0];
+      if (!file) return;
+      pendingMessageImage = null;
+      pendingMessageFile = null;
+      const imageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+      if (imageTypes.includes(file.type) && file.size <= 5 * 1024 * 1024) {
+        pendingMessageImage = await readImage(file);
+        attachmentPreviewImage.src = pendingMessageImage;
+        attachmentPreviewImage.classList.remove('hidden');
+      } else {
+        pendingMessageFile = {
+          data: await readFileData(file),
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+        };
+        attachmentPreviewImage.classList.add('hidden');
+      }
       attachmentPreviewName.textContent = file.name;
       attachmentPreview?.classList.remove('hidden');
     } catch (error) {
       pendingMessageImage = null;
-      imageInput.value = '';
+      pendingMessageFile = null;
+      fileInput.value = '';
       attachmentPreview?.classList.add('hidden');
       alert(error.message);
     }
   });
   removeAttachmentBtn?.addEventListener('click', () => {
     pendingMessageImage = null;
-    if (imageInput) imageInput.value = '';
+    pendingMessageFile = null;
+    attachmentPreviewImage.classList.remove('hidden');
+    if (fileInput) fileInput.value = '';
     attachmentPreview?.classList.add('hidden');
   });
   profileBtn?.addEventListener('click', openProfile);
