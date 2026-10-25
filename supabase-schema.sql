@@ -18,11 +18,18 @@ create table if not exists public.messages (
 );
 
 alter table public.messages add column if not exists image_data text;
+alter table public.messages add column if not exists file_data text;
+alter table public.messages add column if not exists file_name text;
+alter table public.messages add column if not exists file_type text;
 alter table public.messages add column if not exists type text not null default 'text';
 alter table public.messages add column if not exists call_id uuid;
 alter table public.messages add column if not exists call_mode text;
 alter table public.messages add column if not exists call_status text;
 alter table public.messages add column if not exists sticker_id text;
+alter table public.messages add column if not exists chat_id uuid;
+alter table public.messages add column if not exists read_receipts jsonb not null default '{}'::jsonb;
+alter table public.messages add column if not exists pinned_at timestamptz;
+alter table public.messages add column if not exists pinned_by text;
 alter table public.messages add column if not exists reactions jsonb not null default '{}'::jsonb;
 alter table public.messages add column if not exists delivered_at timestamptz;
 alter table public.messages add column if not exists read_at timestamptz;
@@ -33,10 +40,43 @@ alter table public.messages add column if not exists reply_to jsonb;
 
 alter table public.messages drop constraint if exists messages_text_check;
 alter table public.messages add constraint messages_text_check
-  check ((char_length(text) between 0 and 4000) and (char_length(text) > 0 or image_data is not null or sticker_id is not null or audio_data is not null or type in ('call', 'sticker')));
+  check ((char_length(text) between 0 and 4000) and (char_length(text) > 0 or image_data is not null or file_data is not null or sticker_id is not null or audio_data is not null or type in ('call', 'sticker', 'file')));
 
 create index if not exists messages_from_to_created_at_idx
   on public.messages (from_id, to_id, created_at);
+create index if not exists messages_chat_id_created_at_idx
+  on public.messages (chat_id, created_at);
+
+create table if not exists public.chats (
+  id uuid primary key,
+  name text not null,
+  avatar_data text,
+  created_by text not null,
+  created_at timestamptz not null default now(),
+  pinned_at timestamptz
+);
+
+create table if not exists public.chat_members (
+  chat_id uuid not null references public.chats(id) on delete cascade,
+  user_id text not null references public.users(id) on delete cascade,
+  role text not null default 'member',
+  joined_at timestamptz not null default now(),
+  primary key (chat_id, user_id)
+);
+
+create index if not exists chat_members_user_id_idx
+  on public.chat_members (user_id, chat_id);
+
+create table if not exists public.user_blocks (
+  blocker_id text not null references public.users(id) on delete cascade,
+  blocked_id text not null references public.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (blocker_id, blocked_id),
+  check (blocker_id <> blocked_id)
+);
+
+create index if not exists user_blocks_blocked_id_idx
+  on public.user_blocks (blocked_id);
 
 create or replace function public.get_chat_list(p_user_id text)
 returns table (
@@ -69,7 +109,8 @@ as $$
       created_at as message_at,
       sticker_id
     from public.messages
-    where from_id = p_user_id or to_id = p_user_id
+    where (from_id = p_user_id or to_id = p_user_id)
+      and chat_id is null
   ) as conversation
   order by conversation.partner_id, conversation.message_at desc, conversation.id desc;
 $$;
@@ -90,6 +131,9 @@ create index if not exists call_signals_to_created_at_idx
 alter table public.users enable row level security;
 alter table public.messages enable row level security;
 alter table public.call_signals enable row level security;
+alter table public.chats enable row level security;
+alter table public.chat_members enable row level security;
+alter table public.user_blocks enable row level security;
 
 alter table public.messages replica identity full;
 
