@@ -189,6 +189,10 @@ app.use(express.json({ limit: '8mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+function asyncHandler(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
+
 app.get('/api/events', (req, res) => {
   const userId = req.cookies?.sessionUserId;
   if (!userId) return res.status(401).end();
@@ -772,7 +776,7 @@ function ensureUser(id, label, password = '') {
   }
 }
 
-app.get('/api/users', async (req, res) => {
+app.get('/api/users', asyncHandler(async (req, res) => {
   const me = String(req.query.me || '');
   const search = String(req.query.search || '').trim().toLowerCase();
   await storeReady;
@@ -787,7 +791,7 @@ app.get('/api/users', async (req, res) => {
     ]);
     if (usersError) throw usersError;
 
-    let result = (users || []).filter((user) => user.id !== me);
+    let result = (users || []).filter((user) => String(user.id || '') !== me);
     if (!search && me) {
       const { data: conversations, error: conversationsError } = messageResults;
       if (conversationsError) throw conversationsError;
@@ -808,7 +812,10 @@ app.get('/api/users', async (req, res) => {
         .sort((a, b) => Date.parse(b.lastMessage.createdAt) - Date.parse(a.lastMessage.createdAt));
     }
     if (search) {
-      result = result.filter((user) => user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search));
+      result = result.filter((user) =>
+        String(user.id || '').toLowerCase().includes(search)
+        || String(user.label || '').toLowerCase().includes(search)
+      );
     }
     return res.json(result.map((user) => ({
       ...sanitizeUser(user),
@@ -863,12 +870,13 @@ app.get('/api/users', async (req, res) => {
     return res.json(users);
   }
 
-  users = users.filter((user) => {
-    return user.id.toLowerCase().includes(search) || user.label.toLowerCase().includes(search);
-  });
+  users = users.filter((user) =>
+    String(user.id || '').toLowerCase().includes(search)
+    || String(user.label || '').toLowerCase().includes(search)
+  );
 
   res.json(users);
-});
+}));
 
 app.post('/api/auth/register', async (req, res) => {
   const { id, label, password } = req.body || {};
@@ -1809,7 +1817,7 @@ app.post('/api/calls/signal', async (req, res) => {
 // Groups, forwarding, pinning, blocking, search, export
 // ============================================================================
 
-app.get('/api/chats', async (req, res) => {
+app.get('/api/chats', asyncHandler(async (req, res) => {
   const userId = req.cookies?.sessionUserId;
   if (!userId) return res.status(401).json({ error: 'Sign in required.' });
   await storeReady;
@@ -1895,7 +1903,7 @@ app.get('/api/chats', async (req, res) => {
   });
 
   res.json({ chats });
-});
+}));
 
 app.post('/api/chats', async (req, res) => {
   const userId = req.cookies?.sessionUserId;
@@ -2384,7 +2392,7 @@ app.delete('/api/users/:userId/block', async (req, res) => {
   res.json({ ok: true, blocked: false });
 });
 
-app.get('/api/users/blocked', async (req, res) => {
+app.get('/api/users/blocked', asyncHandler(async (req, res) => {
   const userId = req.cookies?.sessionUserId;
   if (!userId) return res.status(401).json({ error: 'Sign in required.' });
   await storeReady;
@@ -2416,9 +2424,9 @@ app.get('/api/users/blocked', async (req, res) => {
     }
   }
   res.json({ users });
-});
+}));
 
-app.get('/api/search', async (req, res) => {
+app.get('/api/search', asyncHandler(async (req, res) => {
   const userId = req.cookies?.sessionUserId;
   const q = String(req.query.q || '').trim().toLowerCase();
   if (!userId) return res.status(401).json({ error: 'Sign in required.' });
@@ -2455,7 +2463,7 @@ app.get('/api/search', async (req, res) => {
   }).slice(0, 50);
 
   res.json({ users: foundUsers, messages: foundMessages });
-});
+}));
 
 app.post('/api/chats/:chatId/pin', async (req, res) => {
   const userId = req.cookies?.sessionUserId;
@@ -2533,6 +2541,12 @@ function formatTime(isoStr) {
     return new Date(isoStr).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   } catch (e) { return ''; }
 }
+
+app.use((error, req, res, next) => {
+  console.error(`API request failed (${req.method} ${req.path}):`, error.message);
+  if (res.headersSent) return next(error);
+  res.status(500).json({ error: 'The request could not be completed. Please try again later.' });
+});
 
 app.listen(PORT, () => {
   console.log(`Messenger running on http://localhost:${PORT}`);
