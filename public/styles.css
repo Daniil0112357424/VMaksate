@@ -3498,3 +3498,273 @@ textarea {
 #passwordChangeStatus.is-error {
   color: var(--danger-text);
 }
+
+/* -------------------------------------------------------------------------
+   New: forwarded / pinned badges
+   ------------------------------------------------------------------------- */
+
+.message-forwarded-hint {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.message-pinned-badge {
+  width: 14px;
+  height: 14px;
+  margin-left: 6px;
+  margin-top: 1px;
+  color: var(--unread);
+}
+
+/* -------------------------------------------------------------------------
+   New: chat list — groups, pins, badges
+   ------------------------------------------------------------------------- */
+
+.user-item-group {
+  border-left: 3px solid var(--accent);
+}
+
+.user-item-pinned .user-item-name::after {
+  content: ' 📌';
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.group-size-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--surface);
+}
+
+.chat-pin-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.chat-pin-btn:hover {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.chat-pin-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.user-item-name-group {
+  font-weight: 700;
+}
+
+/* -------------------------------------------------------------------------
+   New: file messages
+   ------------------------------------------------------------------------- */
+
+.message-file {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.message.me .message-file { background: var(--accent-soft); color: var(--accent-ink); border-color: transparent; }
+
+.message-file:hover {
+  border-color: var(--border-strong);
+  filter: none;
+}
+
+.message.me .message-file:hover { background: color-mix(in srgb, var(--accent-soft) 80%, var(--surface-2)); }
+
+.message-file-icon {
+  font-size: 20px;
+  margin-right: 10px;
+  line-height: 1;
+}
+
+.message-file-info { flex: 1; min-width: 0; }
+
+.message-file-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message-file-size {
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message.file .message-file { display: flex; align-items: center; }
+
+/* -------------------------------------------------------------------------
+   New: modals (forward picker, group info, blocked list, search)
+   ------------------------------------------------------------------------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(520px, 92vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  animation: cardIn 0.3s var(--ease) both;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--surface-3);
+}
+
+.modal-header strong {
+  font-size: 15px;
+  color: var(--text);
+}
+
+.close-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.close-btn:hover { background: var(--surface-2); color: var(--text); }
+
+.close-btn svg { width: 16px; height: 16px; }
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--surface-3);
+}
+
+.forward-list .forward-item {
+  border-radius: var(--radius-sm);
+  transition: background 0.12s ease;
+}
+
+.forward-list .forward-item:hover { background: var(--surface-2); }
+
+/* -------------------------------------------------------------------------
+   New: blocked tag on call header
+   ------------------------------------------------------------------------- */
+
+.call-icon-btn.is-blocked {
+  color: var(--danger-text);
+}
+
+.call-icon-btn.is-blocked:hover { background: var(--danger-soft); }
+
+/* -------------------------------------------------------------------------
+   New: blocked users / contacts list items
+   ------------------------------------------------------------------------- */
+
+.blocked-list-item,
+.contact-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--surface-3);
+  cursor: pointer;
+}
+
+.blocked-list-item:hover,
+.contact-list-item:hover { background: var(--surface-2); }
+
+.blocked-list-item .avatar,
+.contact-list-item .avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  flex: 0 0 34px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.blocked-list-item .info { flex: 1; min-width: 0; }
+
+.blocked-list-item .name {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.blocked-list-item .sub {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.blocked-list-item .actions { display: flex; gap: 7px; flex-shrink: 0; }
+
+@media (max-width: 720px) {
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: 100%;
+    max-width: 320px;
+    transform: translatex(-100%);
+    transition: transform 0.25s var(--ease);
+    z-index: 40;
+  }
+}

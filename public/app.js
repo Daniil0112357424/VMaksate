@@ -60,6 +60,7 @@ const translations = {
     messageSent: 'Отправлено', messageDelivered: 'Доставлено', messageRead: 'Прочитано',
     editMessage: 'Изменить', saveEdit: 'Сохранить', cancelEdit: 'Отмена', messageEdited: 'изменено',
     errEditMessage: 'Не удалось изменить сообщение.',
+    errForward: 'Не удалось переслать сообщение.',
     previewYou: 'Вы', previewImage: 'Фото', previewSticker: 'Стикер', previewCall: 'Звонок',
     deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
     reactionHeart: 'Сердце', reactionLike: 'Нравится', reactionPoop: 'Какашка',
@@ -123,7 +124,65 @@ const translations = {
     btnResetPassword: 'Сбросить пароль',
     promptNewPassword: 'Новый пароль для {id}:',
     errResetPassword: 'Не удалось сбросить пароль.',
-    msgPasswordReset: 'Пароль аккаунта {id} сброшен.'
+    msgPasswordReset: 'Пароль аккаунта {id} сброшен.',
+
+    // Groups
+    groupChat: 'Групповой чат',
+    createGroup: 'Создать группу',
+    groupName: 'Название группы',
+    groupNamePlaceholder: 'Например: Команда проекта',
+    addMembers: 'Добавить участников',
+    groupMembers: 'Участники группы',
+    leaveGroup: 'Покинуть группу',
+    deleteGroup: 'Удалить группу',
+    groupInfo: 'Информация о группе',
+    groupAdmin: 'Администратор',
+    groupMember: 'Участник',
+    adminOnly: 'Только администратор группы',
+    memberAdded: 'добавил {name}',
+    memberLeft: 'покинул группу',
+    you: 'Вы',
+
+    // Forwarding
+    forward: 'Переслать',
+    forwardTo: 'Переслать в',
+    forwardChoose: 'Выберите получателя',
+    forwardedMessage: 'Пересланное сообщение',
+
+    // Pinning
+    pinMessage: 'Закрепить',
+    unpinMessage: 'Открепить',
+    pinnedMessage: 'Закреплённое сообщение',
+    pinnedChat: 'Закреплённый чат',
+    pinChat: 'Закрепить чат',
+    unpinChat: 'Открепить чат',
+
+    // Receipts & blocking
+    readBy: 'Прочитали:',
+    readByYou: 'вы',
+    blocked: 'Заблокирован',
+    blockUser: 'Заблокировать',
+    unblockUser: 'Разблокировать',
+    blockedUsers: 'Заблокированные пользователи',
+    unblockConfirm: 'Разблокировать {id}?',
+    blockConfirm: 'Заблокировать {id}? Пользователь не сможет вам писать.',
+
+    // Files & export
+    attachFile: 'Прикрепить файл',
+    attachedFile: 'Файл',
+    fileTooLarge: 'Файл слишком велик (макс. 20 МБ).',
+    exportChat: 'Экспорт чата',
+    exporting: 'Экспорт чата…',
+    exported: 'Чат экспортирован.',
+    errExport: 'Не удалось экспортировать чат.',
+
+    // Search
+    globalSearch: 'Поиск по всем чатам',
+    globalSearchPlaceholder: 'Ищите в сообщениях и контактах',
+    searchResults: 'Результаты поиска',
+    noResults: 'Ничего не найдено',
+    searchMessages: 'Сообщения',
+    searchContacts: 'Контакты',
   },
   en: {
     appTitle: 'VMaksate',
@@ -186,6 +245,7 @@ const translations = {
     messageSent: 'Sent', messageDelivered: 'Delivered', messageRead: 'Read',
     editMessage: 'Edit', saveEdit: 'Save', cancelEdit: 'Cancel', messageEdited: 'edited',
     errEditMessage: 'Unable to edit message.',
+    errForward: 'Unable to forward message.',
     previewYou: 'You', previewImage: 'Photo', previewSticker: 'Sticker', previewCall: 'Call',
     deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
     reactionHeart: 'Heart', reactionLike: 'Like', reactionPoop: 'Poop',
@@ -249,7 +309,65 @@ const translations = {
     btnResetPassword: 'Reset password',
     promptNewPassword: 'New password for {id}:',
     errResetPassword: 'Failed to reset password.',
-    msgPasswordReset: 'Password for {id} has been reset.'
+    msgPasswordReset: 'Password for {id} has been reset.',
+
+    // Groups
+    groupChat: 'Group chat',
+    createGroup: 'Create group',
+    groupName: 'Group name',
+    groupNamePlaceholder: 'Example: Project team',
+    addMembers: 'Add members',
+    groupMembers: 'Group members',
+    leaveGroup: 'Leave group',
+    deleteGroup: 'Delete group',
+    groupInfo: 'Group info',
+    groupAdmin: 'Admin',
+    groupMember: 'Member',
+    adminOnly: 'Group admin only',
+    memberAdded: 'added {name}',
+    memberLeft: 'left the group',
+    you: 'You',
+
+    // Forwarding
+    forward: 'Forward',
+    forwardTo: 'Forward to',
+    forwardChoose: 'Choose recipient',
+    forwardedMessage: 'Forwarded message',
+
+    // Pinning
+    pinMessage: 'Pin',
+    unpinMessage: 'Unpin',
+    pinnedMessage: 'Pinned message',
+    pinnedChat: 'Pinned chat',
+    pinChat: 'Pin chat',
+    unpinChat: 'Unpin chat',
+
+    // Receipts & blocking
+    readBy: 'Read by:',
+    readByYou: 'you',
+    blocked: 'Blocked',
+    blockUser: 'Block user',
+    unblockUser: 'Unblock user',
+    blockedUsers: 'Blocked users',
+    unblockConfirm: 'Unblock {id}?',
+    blockConfirm: "Block {id}? They won't be able to message you.",
+
+    // Files & export
+    attachFile: 'Attach file',
+    attachedFile: 'File',
+    fileTooLarge: 'File is too large (max 20 MB).',
+    exportChat: 'Export chat',
+    exporting: 'Exporting chat…',
+    exported: 'Chat exported.',
+    errExport: 'Failed to export chat.',
+
+    // Search
+    globalSearch: 'Search all chats',
+    globalSearchPlaceholder: 'Search in messages and contacts',
+    searchResults: 'Search results',
+    noResults: 'No results',
+    searchMessages: 'Messages',
+    searchContacts: 'Contacts',
   },
   es: {
     appTitle: 'VMaksate',
@@ -312,6 +430,7 @@ const translations = {
     messageSent: 'Enviado', messageDelivered: 'Entregado', messageRead: 'Leído',
     editMessage: 'Editar', saveEdit: 'Guardar', cancelEdit: 'Cancelar', messageEdited: 'editado',
     errEditMessage: 'No se pudo editar el mensaje.',
+    errForward: 'No se pudo reenviar el mensaje.',
     previewYou: 'Tú', previewImage: 'Foto', previewSticker: 'Sticker', previewCall: 'Llamada',
     deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
     reactionHeart: 'Corazón', reactionLike: 'Me gusta', reactionPoop: 'Caca',
@@ -375,7 +494,65 @@ const translations = {
     btnResetPassword: 'Restablecer contraseña',
     promptNewPassword: 'Nueva contraseña para {id}:',
     errResetPassword: 'No se pudo restablecer la contraseña.',
-    msgPasswordReset: 'La contraseña de {id} se ha restablecido.'
+    msgPasswordReset: 'La contraseña de {id} se ha restablecido.',
+
+    // Groups
+    groupChat: 'Chat grupal',
+    createGroup: 'Crear grupo',
+    groupName: 'Nombre del grupo',
+    groupNamePlaceholder: 'Ejemplo: Equipo del proyecto',
+    addMembers: 'Añadir miembros',
+    groupMembers: 'Miembros del grupo',
+    leaveGroup: 'Salir del grupo',
+    deleteGroup: 'Eliminar grupo',
+    groupInfo: 'Información del grupo',
+    groupAdmin: 'Administrador',
+    groupMember: 'Miembro',
+    adminOnly: 'Solo el administrador del grupo',
+    memberAdded: 'añadió a {name}',
+    memberLeft: 'abandonó el grupo',
+    you: 'Tú',
+
+    // Forwarding
+    forward: 'Reenviar',
+    forwardTo: 'Reenviar a',
+    forwardChoose: 'Elegir destinatario',
+    forwardedMessage: 'Mensaje reenviado',
+
+    // Pinning
+    pinMessage: 'Fijar',
+    unpinMessage: 'Desfijar',
+    pinnedMessage: 'Mensaje fijado',
+    pinnedChat: 'Chat fijado',
+    pinChat: 'Fijar chat',
+    unpinChat: 'Desfijar chat',
+
+    // Receipts & blocking
+    readBy: 'Leído por:',
+    readByYou: 'tú',
+    blocked: 'Bloqueado',
+    blockUser: 'Bloquear usuario',
+    unblockUser: 'Desbloquear usuario',
+    blockedUsers: 'Usuarios bloqueados',
+    unblockConfirm: '¿Desbloquear {id}?',
+    blockConfirm: '¿Bloquear a {id}? No podrá enviarte mensajes.',
+
+    // Files & export
+    attachFile: 'Adjuntar archivo',
+    attachedFile: 'Archivo',
+    fileTooLarge: 'El archivo es demasiado grande (máx. 20 MB).',
+    exportChat: 'Exportar chat',
+    exporting: 'Exportando chat…',
+    exported: 'Chat exportado.',
+    errExport: 'No se pudo exportar el chat.',
+
+    // Search
+    globalSearch: 'Buscar en todos los chats',
+    globalSearchPlaceholder: 'Buscar en mensajes y contactos',
+    searchResults: 'Resultados de la búsqueda',
+    noResults: 'Sin resultados',
+    searchMessages: 'Mensajes',
+    searchContacts: 'Contactos',
   }
 };
 
@@ -551,6 +728,9 @@ let selectedPartner = null;
 let currentUserList = [];
 const unreadUsers = new Set();
 const lastMessageByUser = new Map();
+const pinnedChatIds = new Set();
+let groupChatsCache = [];
+let blockedUsersCache = [];
 
 const authPage = document.getElementById('authPage');
 const registerForm = document.getElementById('registerForm');
@@ -613,6 +793,21 @@ const attachmentPreview = document.getElementById('attachmentPreview');
 const attachmentPreviewImage = document.getElementById('attachmentPreviewImage');
 const attachmentPreviewName = document.getElementById('attachmentPreviewName');
 const removeAttachmentBtn = document.getElementById('removeAttachmentBtn');
+const fileInput = document.getElementById('fileInput');
+const newGroupBtn = document.getElementById('newGroupBtn');
+const groupInfoBtn = document.getElementById('groupInfoBtn');
+const blockUserBtn = document.getElementById('blockUserBtn');
+const exportChatBtn = document.getElementById('exportChatBtn');
+const groupInfoModal = document.getElementById('groupInfoModal');
+const groupInfoForm = document.getElementById('groupInfoForm');
+const groupInfoNameInput = document.getElementById('groupInfoNameInput');
+const groupInfoMembersList = document.getElementById('groupInfoMembersList');
+const groupInfoAvatar = document.getElementById('groupInfoAvatar');
+const groupInfoName = document.getElementById('groupInfoName');
+const groupInfoType = document.getElementById('groupInfoType');
+const groupAddMembersBtn = document.getElementById('groupAddMembersBtn');
+const groupLeaveBtn = document.getElementById('groupLeaveBtn');
+const closeGroupInfoBtn = document.getElementById('closeGroupInfoBtn');
 const stickerBtn = document.getElementById('stickerBtn');
 const stickerMenu = document.getElementById('stickerMenu');
 const etoRealnoSticker = document.getElementById('etoRealnoSticker');
@@ -701,39 +896,54 @@ function updateChatHeader(user) {
     if (chatSearchBtn) chatSearchBtn.disabled = true;
     if (isChatSearchOpen()) closeChatSearch();
     chatPanel?.classList.add('no-chat');
+    if (groupInfoBtn) groupInfoBtn.hidden = true;
+    if (blockUserBtn) blockUserBtn.hidden = true;
     return;
   }
   chatPanel?.classList.remove('no-chat');
   if (chatSearchBtn) chatSearchBtn.disabled = false;
+  const isGroup = user.type === 'group';
   chatPartner.textContent = user.label;
+  if (groupInfoBtn) groupInfoBtn.hidden = !isGroup;
+  if (blockUserBtn) {
+    blockUserBtn.hidden = isGroup;
+    if (!isGroup) {
+      const alreadyBlocked = blockedUsersCache.some((u) => String(u.id) === user.id);
+      blockUserBtn.setAttribute('aria-label', alreadyBlocked ? t('unblockUser') : t('blockUser'));
+      blockUserBtn.title = alreadyBlocked ? t('unblockUser') : t('blockUser');
+      blockUserBtn.classList.toggle('is-blocked', alreadyBlocked);
+    }
+  }
   if (partnerAbout) {
-    partnerAbout.textContent = user.about || '';
-    partnerAbout.title = user.about || '';
-    partnerAbout.classList.toggle('hidden', !user.about);
+    if (isGroup) {
+      partnerAbout.textContent = user.memberCount ? `${user.memberCount} ${t('groupMembers').toLowerCase()}` : '';
+      partnerAbout.title = partnerAbout.textContent;
+      partnerAbout.classList.toggle('hidden', !partnerAbout.textContent);
+    } else {
+      partnerAbout.textContent = user.about || '';
+      partnerAbout.title = user.about || '';
+      partnerAbout.classList.toggle('hidden', !user.about);
+    }
   }
   if (partnerPresence) {
-    const presence = user.id === currentUser?.id ? null : getUserPresence(user.id);
-    const lastSeenText = presence && !presence.online ? formatPresenceTime(presence.lastSeenAt) : null;
-    partnerPresence.textContent = !presence ? ''
-      : presence.online ? t('presenceOnline')
-        : lastSeenText ? t('presenceLastSeen', { time: lastSeenText })
-          : t('presenceLastSeenUnknown');
-    partnerPresence.classList.toggle('online', Boolean(presence?.online));
+    partnerPresence.classList.add('hidden');
+    partnerPresence.textContent = '';
   }
   if (partnerAvatar) {
     partnerAvatar.classList.remove('hidden');
-    partnerAvatar.classList.toggle('is-online', Boolean(getUserPresence(user.id)?.online));
+    partnerAvatar.classList.toggle('is-online', false);
     partnerAvatar.style.background = user.avatarData ? `url("${user.avatarData}") center / cover` : getAvatarBg(user.label || user.id);
     partnerAvatar.classList.toggle('avatar-photo', Boolean(user.avatarData));
     partnerAvatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
   }
-  const callsUnavailable = !window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia;
+  const callsUnavailable = isGroup || !window.RTCPeerConnection || !navigator.mediaDevices?.getUserMedia;
   if (audioCallBtn) audioCallBtn.disabled = callsUnavailable;
   if (videoCallBtn) videoCallBtn.disabled = callsUnavailable;
 }
 
 function sendTypingState(isTyping) {
   if (!currentUser || !selectedPartner) return;
+  if (selectedPartner.type === 'group') return;
   if (isTyping) {
     if (Date.now() - lastTypingSentAt < 1500) return;
     lastTypingSentAt = Date.now();
@@ -745,7 +955,7 @@ function sendTypingState(isTyping) {
   fetch('/api/chat/typing', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ toId: selectedPartner.id, isTyping }),
+    body: JSON.stringify({ toId: selectedPartner.partnerId || selectedPartner.id, isTyping }),
     keepalive: !isTyping,
   }).catch((error) => console.error('Unable to send typing status:', error));
 }
@@ -936,18 +1146,34 @@ function renderUsers(users) {
   userList.innerHTML = '';
   currentUserList = users
     .map((user) => ({ ...user, lastMessage: lastMessageByUser.get(user.id) || user.lastMessage || null }))
-    .sort((a, b) => Date.parse(b.lastMessage?.createdAt || 0) - Date.parse(a.lastMessage?.createdAt || 0));
+    .sort((a, b) => {
+      const pa = pinnedChatIds.has(a.id) ? 1 : 0;
+      const pb = pinnedChatIds.has(b.id) ? 1 : 0;
+      if (pb !== pa) return pb - pa;
+      return Date.parse(b.lastMessage?.createdAt || 0) - Date.parse(a.lastMessage?.createdAt || 0);
+    });
 
   currentUserList.forEach((user) => {
+    const isGroup = user.type === 'group';
     const item = document.createElement('div');
-    item.className = `user-item ${selectedPartner && selectedPartner.id === user.id ? 'active' : ''}`;
+    item.className = `user-item ${selectedPartner && selectedPartner.id === user.id ? 'active' : ''} ${isGroup ? 'user-item-group' : ''}`;
+    if (pinnedChatIds.has(user.id)) item.classList.add('user-item-pinned');
 
     const avatar = document.createElement('div');
     avatar.className = 'user-avatar-circle';
+    const isOnline = isGroup
+      ? false
+      : Boolean(user.id !== currentUser?.id && getUserPresence(user.id)?.online);
     avatar.style.background = user.avatarData ? `url("${user.avatarData}") center / cover` : getAvatarBg(user.label || user.id);
     avatar.classList.toggle('avatar-photo', Boolean(user.avatarData));
-    avatar.classList.toggle('is-online', Boolean(user.id !== currentUser?.id && getUserPresence(user.id)?.online));
+    avatar.classList.toggle('is-online', isOnline);
     avatar.textContent = (user.label || user.id).charAt(0).toUpperCase();
+    if (isGroup && user.memberCount) {
+      const badge = document.createElement('span');
+      badge.className = 'group-size-badge';
+      badge.textContent = String(user.memberCount);
+      avatar.appendChild(badge);
+    }
 
     const info = document.createElement('div');
     info.className = 'user-item-info';
@@ -955,6 +1181,7 @@ function renderUsers(users) {
     const name = document.createElement('div');
     name.className = 'user-item-name';
     name.textContent = user.label;
+    if (isGroup) name.classList.add('user-item-name-group');
 
     info.appendChild(name);
 
@@ -962,19 +1189,32 @@ function renderUsers(users) {
       const preview = document.createElement('div');
       preview.className = 'user-item-preview';
       const message = user.lastMessage;
-      preview.textContent = `${message.fromId === currentUser?.id ? `${t('previewYou')}: ` : ''}${messagePreviewText(message)}`;
+      const isGroupMsg = Boolean(message.chatId);
+      const senderLabel = message.fromId === currentUser?.id ? t('previewYou') : (message.fromId || '');
+      preview.textContent = `${isGroupMsg ? `${escapeHtml(senderLabel)}: ` : message.fromId === currentUser?.id ? `${t('previewYou')}: ` : ''}${messagePreviewText(message)}`;
       info.appendChild(preview);
     }
 
     const meta = document.createElement('div');
     meta.className = 'user-item-meta';
 
+    const pinBtn = document.createElement('button');
+    pinBtn.type = 'button';
+    pinBtn.className = 'chat-pin-btn';
+    pinBtn.setAttribute('aria-label', pinnedChatIds.has(user.id) ? t('unpinChat') : t('pinChat'));
+    pinBtn.title = pinnedChatIds.has(user.id) ? t('unpinChat') : t('pinChat');
+    pinBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 3v8"/><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/></svg>';
+    pinBtn.addEventListener('click', (event) => {
+      event.stopPropagation();
+      togglePinChat(user.id, pinnedChatIds.has(user.id));
+    });
+    meta.appendChild(pinBtn);
+
     const dot = document.createElement('span');
     dot.className = 'notification-dot';
     if (unreadUsers.has(user.id)) {
       dot.classList.add('visible');
     }
-
     meta.appendChild(dot);
 
     item.appendChild(avatar);
@@ -987,10 +1227,19 @@ function renderUsers(users) {
       flushDraft();
       if (selectedPartner?.id !== user.id && isChatSearchOpen()) closeChatSearch();
       if (selectedPartner?.id !== user.id) setReplyTarget(null);
-      selectedPartner = user;
+
+      selectedPartner = {
+        id: user.id,
+        type: isGroup ? 'group' : 'direct',
+        partnerId: isGroup ? null : (user.partnerId || user.id),
+        chatId: isGroup ? user.id : null,
+        label: user.label,
+        avatarData: user.avatarData,
+        about: user.about,
+      };
       lastTypingSentAt = 0;
       if (messageInput) messageInput.value = readDraft(user.id);
-      updateChatHeader(user);
+      updateChatHeader(selectedPartner);
       document.querySelectorAll('.user-item').forEach((el) => el.classList.remove('active'));
       item.classList.add('active');
       unreadUsers.delete(user.id);
@@ -1032,9 +1281,9 @@ async function refreshUnreadIndicators() {
 
 function updateChatListFromMessage(message) {
   if (!message.createdAt || message.type === 'call') return;
-  const partnerId = message.fromId === currentUser?.id ? message.toId
-    : message.toId === currentUser?.id ? message.fromId
-      : null;
+  const isGroup = Boolean(message.chatId);
+  const partnerId = isGroup ? String(message.chatId)
+    : (message.fromId === currentUser?.id ? message.toId : message.toId === currentUser?.id ? message.fromId : null);
   if (!partnerId) return;
 
   const lastMessage = {
@@ -1044,6 +1293,8 @@ function updateChatListFromMessage(message) {
     type: message.type || 'text',
     createdAt: message.createdAt,
     stickerId: message.stickerId || null,
+    chatId: isGroup ? message.chatId : null,
+    fileName: message.fileName || null,
   };
   const previousMessage = lastMessageByUser.get(partnerId)
     || currentUserList.find((user) => user.id === partnerId)?.lastMessage;
@@ -1053,8 +1304,419 @@ function updateChatListFromMessage(message) {
     || (selectedPartner?.id === partnerId ? selectedPartner : null);
   if (partner) {
     partner.lastMessage = lastMessage;
+    partner.type = isGroup ? 'group' : 'direct';
+    if (isGroup) partner.chatId = message.chatId;
     if (!currentUserList.some((user) => user.id === partnerId)) currentUserList.push(partner);
     renderUsers(currentUserList);
+  }
+}
+
+async function loadChats() {
+  if (!currentUser || !userList) return;
+  const me = currentUser.id;
+  let chatsData, users, blockedData;
+  try {
+    const [chatsResp, usersResp, blockedResp] = await Promise.all([
+      fetch('/api/chats'),
+      fetch(`/api/users?me=${encodeURIComponent(me)}`),
+      fetch('/api/users/blocked'),
+    ]);
+    chatsData = await chatsResp.json();
+    users = await usersResp.json();
+    blockedData = await blockedResp.json();
+  } catch (error) {
+    console.error('Unable to load chats:', error);
+    return;
+  }
+  blockedUsersCache = Array.isArray(blockedData.users) ? blockedData.users : [];
+  const userMap = new Map((users || []).map((u) => [String(u.id), u]));
+  const items = [];
+  for (const chat of (chatsData.chats || [])) {
+    if (chat.type === 'group') {
+      items.push({
+        id: chat.id, type: 'group', label: chat.name || t('groupChat'),
+        avatarData: chat.avatarData || null, chatId: chat.id,
+        memberCount: chat.memberCount, lastMessage: chat.lastMessage || null,
+      });
+    } else {
+      const partnerId = chat.partnerId;
+      const user = userMap.get(String(partnerId));
+      items.push({
+        id: chat.id, type: 'direct', partnerId,
+        label: user ? (user.label || partnerId) : partnerId,
+        avatarData: user ? user.avatarData || null : null,
+        about: user ? user.about || '' : '',
+        lastMessage: chat.lastMessage || null,
+      });
+    }
+  }
+  renderUsers(items);
+}
+
+async function togglePinChat(chatId, currentlyPinned) {
+  try {
+    const response = await fetch(`/api/chats/${encodeURIComponent(chatId)}/pin`, { method: 'POST' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to pin chat.');
+    if (result.pinned) pinnedChatIds.add(chatId);
+    else pinnedChatIds.delete(chatId);
+    loadChats();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function createGroup() {
+  if (!currentUser) return;
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal card" style="max-width:440px;">
+      <div class="modal-header"><strong data-i18n="createGroup">${t('createGroup')}</strong><button class="close-btn" type="button" data-i18n-title="closeBtnLabel" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div style="padding:16px 20px 12px;">
+        <label class="block-label" data-i18n="groupName">Название группы</label>
+        <input id="newGroupName" maxlength="80" placeholder="${t('groupNamePlaceholder')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;margin-bottom:10px;" />
+        <label class="block-label" data-i18n="addMembers">Участники (поиск по user id или имени)</label>
+        <input id="newGroupMembers" placeholder="Например: demo1, demo2" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;" />
+        <div id="newGroupError" style="color:var(--danger-text);font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:10px 20px 16px;">
+        <button type="button" class="auth-secondary-btn" data-i18n="closeBtnLabel">Закрыть</button>
+        <button type="button" class="primary-btn" id="newGroupCreateBtn" data-i18n="createGroup">Создать группу</button>
+      </div>
+    </div>
+  `;
+  const close = () => modal.remove();
+  modal.querySelector('.close-btn').addEventListener('click', close);
+  modal.querySelector('[data-i18n="closeBtnLabel"]').addEventListener('click', close);
+  modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+  const nameInput = modal.querySelector('#newGroupName');
+  const membersInput = modal.querySelector('#newGroupMembers');
+  const errorEl = modal.querySelector('#newGroupError');
+  const createBtn = modal.querySelector('#newGroupCreateBtn');
+  createBtn.addEventListener('click', async () => {
+    const name = nameInput.value.trim();
+    if (!name) { errorEl.textContent = 'Введите название группы.'; errorEl.style.display = 'block'; return; }
+    const raw = membersInput.value.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+    const memberIds = [currentUser.id, ...raw];
+    errorEl.style.display = 'none';
+    createBtn.disabled = true;
+    try {
+      const response = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, memberIds }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to create group.');
+      close();
+      await loadChats();
+      showToast('Группа создана.');
+    } catch (error) {
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
+      createBtn.disabled = false;
+    }
+  });
+  document.body.appendChild(modal);
+  nameInput.focus();
+}
+
+async function openGroupInfo() {
+  if (!currentUser || !selectedPartner || selectedPartner.type !== 'group') return;
+  const chatId = selectedPartner.chatId;
+  let chatData;
+  try {
+    const response = await fetch(`/api/chats/${encodeURIComponent(chatId)}`);
+    chatData = await response.json();
+    if (!response.ok) throw new Error(chatData.error || 'Unable to load group info.');
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+  const { chat, members } = chatData;
+  const isAdmin = members.some((m) => String(m.userId) === currentUser.id && m.role === 'admin');
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal card" style="max-width:460px;">
+      <div class="modal-header"><strong data-i18n="groupInfo">${t('groupInfo')}</strong><button class="close-btn" type="button" data-i18n-title="closeBtnLabel" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div style="padding:16px 20px 12px;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+          <div id="groupInfoAvatar" class="group-info-avatar" style="width:44px;height:44px;font-size:18px;"></div>
+          <div>
+            <div style="font-weight:700;font-size:16px;" data-i18n="groupName">Название группы</div>
+            <input id="groupEditName" maxlength="80" value="${escapeHtml(chat.name || '')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;margin-top:4px;" />
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">${escapeHtml(members.length)} ${t('groupMembers').toLowerCase()}${isAdmin ? ' — ' + t('adminOnly') : ''}</div>
+        <div id="groupMembersList" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;"></div>
+        ${isAdmin ? `<button type="button" id="groupAddMembersBtn" class="secondary-btn" style="width:100%;margin-bottom:8px;" data-i18n="addMembers">Добавить участников</button>` : ''}
+        <button type="button" id="groupLeaveBtn" class="danger-btn" style="width:100%;" data-i18n="leaveGroup">Покинуть группу</button>
+      </div>
+    </div>
+  `;
+  const close = () => modal.remove();
+  modal.querySelector('.close-btn').addEventListener('click', close);
+  modal.querySelector('[data-i18n="closeBtnLabel"]').addEventListener('click', close);
+  modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+
+  const avatarEl = modal.querySelector('#groupInfoAvatar');
+  avatarEl.style.background = chat.avatarData ? `url("${chat.avatarData}") center / cover` : getAvatarBg(chat.name);
+  avatarEl.classList.toggle('avatar-photo', Boolean(chat.avatarData));
+  avatarEl.textContent = (chat.name || t('groupChat')).charAt(0).toUpperCase();
+
+  const membersList = modal.querySelector('#groupMembersList');
+  const renderMembers = () => {
+    membersList.innerHTML = '';
+    members.forEach((m) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.justifyContent = 'space-between';
+      row.style.padding = '8px 10px';
+      row.style.borderBottom = '1px solid var(--surface-3)';
+      const info = document.createElement('div');
+      info.style.display = 'flex';
+      info.style.alignItems = 'center';
+      info.style.gap = '10px';
+      info.style.flex = '1';
+      const userObj = m.user;
+      const dispLabel = userObj ? (userObj.label || userObj.userId) : m.userId;
+      const dispAvatar = userObj ? userObj.avatarData : null;
+      const av = document.createElement('div');
+      av.className = 'user-avatar-circle';
+      av.style.width = '28px';
+      av.style.height = '28px';
+      av.style.fontSize = '12px';
+      av.style.background = dispAvatar ? `url("${dispAvatar}") center / cover` : getAvatarBg(dispLabel);
+      av.classList.toggle('avatar-photo', Boolean(dispAvatar));
+      av.textContent = dispLabel.charAt(0).toUpperCase();
+      const name = document.createElement('div');
+      name.style.fontWeight = '600';
+      name.style.fontSize = '13px';
+      name.textContent = dispLabel;
+      const role = document.createElement('div');
+      role.style.fontSize = '11px';
+      role.style.color = 'var(--muted)';
+      role.textContent = m.role === 'admin' ? t('groupAdmin') : t('groupMember');
+      info.append(av, name, role);
+      const actions = document.createElement('div');
+      actions.style.display = 'flex';
+      actions.style.gap = '6px';
+      if (String(m.userId) !== currentUser.id && isAdmin) {
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.textContent = 'Удалить';
+        removeBtn.style.fontSize = '11px';
+        removeBtn.style.padding = '4px 8px';
+        removeBtn.style.borderRadius = 'var(--radius-sm)';
+        removeBtn.style.border = '1px solid var(--danger)';
+        removeBtn.style.color = 'var(--danger-text)';
+        removeBtn.style.background = 'transparent';
+        removeBtn.style.cursor = 'pointer';
+        removeBtn.addEventListener('click', async (ev) => {
+          ev.stopPropagation();
+          if (!window.confirm('Удалить участника из группы?')) return;
+          try {
+            const resp = await fetch(`/api/chats/${encodeURIComponent(chatId)}/members/${encodeURIComponent(m.userId)}`, { method: 'DELETE' });
+            if (!resp.ok) throw new Error('Unable to remove member.');
+            members.splice(members.indexOf(m), 1);
+            renderMembers();
+          } catch (error) { alert(error.message); }
+        });
+        actions.appendChild(removeBtn);
+      }
+      if (m.role === 'admin') {
+        const badge = document.createElement('span');
+        badge.style.fontSize = '10px';
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = 'var(--radius-full)';
+        badge.style.background = 'var(--accent-soft)';
+        badge.style.color = 'var(--accent-ink)';
+        badge.textContent = t('groupAdmin');
+        actions.appendChild(badge);
+      }
+      row.append(info, actions);
+      membersList.appendChild(row);
+    });
+  };
+  renderMembers();
+
+  const modalAddMembersBtn = modal.querySelector('#groupAddMembersBtn');
+  if (modalAddMembersBtn) {
+    modalAddMembersBtn.addEventListener('click', async () => {
+      const ids = window.prompt('Введите user id участников через запятую:');
+      if (!ids) return;
+      const idList = ids.split(/[,;]/).map((s) => s.trim()).filter(Boolean);
+      if (!idList.length) return;
+      try {
+        const resp = await fetch(`/api/chats/${encodeURIComponent(chatId)}/members`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ memberIds: idList }),
+        });
+        if (!resp.ok) throw new Error('Unable to add members.');
+        await loadChats();
+        close();
+      } catch (error) { alert(error.message); }
+    });
+  }
+  const leaveBtn = modal.querySelector('#groupLeaveBtn');
+  leaveBtn.addEventListener('click', async () => {
+    if (!window.confirm('Покинуть группу? Вы больше не будете видеть эту переписку.')) return;
+    try {
+      const resp = await fetch(`/api/chats/${encodeURIComponent(chatId)}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Unable to leave group.');
+      close();
+      if (selectedPartner?.id === chatId) {
+        selectedPartner = null;
+        updateChatHeader(null);
+        loadMessages();
+      }
+      await loadChats();
+      showToast('Вы покинули группу.');
+    } catch (error) { alert(error.message); }
+  });
+
+  document.body.appendChild(modal);
+}
+
+async function readImageAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Unable to read file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleDocumentFile() {
+  if (!fileInput || !currentUser || !selectedPartner) return;
+  const file = fileInput.files[0];
+  if (!file) return;
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    alert(t('fileTooLarge'));
+    fileInput.value = '';
+    return;
+  }
+  try {
+    const dataURL = await readImageAsDataURL(file);
+    const isGroup = selectedPartner.type === 'group';
+    const body = {
+      fromId: currentUser.id,
+      text: '',
+      fileData: dataURL,
+      fileName: file.name,
+      fileType: file.type || 'application/octet-stream',
+    };
+    if (isGroup) { body.chatId = selectedPartner.chatId; }
+    else { body.toId = selectedPartner.partnerId || selectedPartner.id; }
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to send file.');
+    if (messageInput) messageInput.value = '';
+    fileInput.value = '';
+    loadMessages();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function blockUserAction(targetId, block) {
+  if (!currentUser) return;
+  try {
+    const response = await fetch(`/api/users/${encodeURIComponent(targetId)}/block`, {
+      method: block ? 'POST' : 'DELETE',
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Unable to update block.');
+    await loadBlockedUsers();
+    await loadChats();
+    showToast(block ? t('blocked') : 'Разблокировано.');
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function loadBlockedUsers() {
+  if (!currentUser) return;
+  try {
+    const response = await fetch('/api/users/blocked');
+    const data = await response.json();
+    blockedUsersCache = Array.isArray(data.users) ? data.users : [];
+  } catch (error) {
+    console.error('Unable to load blocked users:', error);
+  }
+}
+
+async function globalSearch() {
+  if (!currentUser) return;
+  const q = prompt('Поиск по сообщениям и контактам:');
+  if (!q) return;
+  try {
+    const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Unable to search.');
+    const users = data.users || [];
+    const messages = data.messages || [];
+    const lines = [
+      `Поиск: ${q}`,
+      '',
+      'Контакты:',
+      ...users.map((u) => `• ${u.label || u.id} (@${u.id})`),
+      '',
+      'Сообщения:',
+      ...messages.slice(0, 30).map((m) => {
+        const dir = m.fromId === currentUser.id ? '→' : '←';
+        return `${dir} ${m.fromId}: ${escapeHtml(m.text || m.type || '')}`;
+      }),
+    ];
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal card" style="max-width:560px;max-height:70vh;display:flex;flex-direction:column;">
+        <div class="modal-header"><strong data-i18n="searchResults">${t('searchResults')}</strong><button class="close-btn" type="button" data-i18n-title="closeBtnLabel" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+        <div style="flex:1;overflow:auto;padding:16px 20px;font-size:13px;line-height:1.6;color:var(--text-2);white-space:pre-wrap;">${escapeHtml(lines.join('\n'))}</div>
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;padding:10px 20px 16px;">
+          <button type="button" class="primary-btn" data-i18n="closeBtnLabel">Закрыть</button>
+        </div>
+      </div>
+    `;
+    const close = () => modal.remove();
+    modal.querySelector('.close-btn').addEventListener('click', close);
+    modal.querySelector('[data-i18n="closeBtnLabel"]').addEventListener('click', close);
+    modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+    document.body.appendChild(modal);
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function exportChat() {
+  if (!currentUser || !selectedPartner) return;
+  const chatId = selectedPartner.id;
+  try {
+    showToast(t('exporting'));
+    const response = await fetch(`/api/export/${encodeURIComponent(chatId)}`);
+    if (!response.ok) throw new Error(t('errExport'));
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `export-${chatId}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    showToast(t('exported'));
+  } catch (error) {
+    alert(error.message);
   }
 }
 
@@ -1062,11 +1724,33 @@ async function searchUsers() {
   if (!searchInput) return;
   const search = searchInput.value.trim();
   const me = currentUser?.id || '';
-  const response = await fetch(`/api/users?search=${encodeURIComponent(search)}&me=${encodeURIComponent(me)}`);
-  const users = await response.json();
-  if (!response.ok) throw new Error(users.error || 'Unable to load users.');
-  renderUsers(users);
-  await refreshUnreadIndicators();
+  if (!search) {
+    await loadChats();
+    await refreshUnreadIndicators();
+    return;
+  }
+  const [usersResp, chatsResp] = await Promise.all([
+    fetch(`/api/users?search=${encodeURIComponent(search)}&me=${encodeURIComponent(me)}`),
+    fetch('/api/chats'),
+  ]);
+  const users = await usersResp.json();
+  const chatsData = await chatsResp.json();
+  if (!usersResp.ok) throw new Error(users.error || 'Unable to search.');
+  const items = [];
+  (users || []).forEach((u) => items.push({
+    id: u.id, type: 'direct', partnerId: u.id, label: u.label || u.id,
+    avatarData: u.avatarData || null, about: u.about || '', lastMessage: null,
+  }));
+  for (const chat of (chatsData.chats || [])) {
+    if (chat.type === 'group' && (String(chat.name || '').toLowerCase().includes(search) || String(chat.id).toLowerCase().includes(search))) {
+      items.push({
+        id: chat.id, type: 'group', label: chat.name || t('groupChat'),
+        avatarData: chat.avatarData || null, chatId: chat.id,
+        memberCount: chat.memberCount, lastMessage: chat.lastMessage || null,
+      });
+    }
+  }
+  renderUsers(items);
 }
 
 let latestMessagesRequest = 0;
@@ -1164,6 +1848,103 @@ function flushDraft() {
   clearTimeout(draftSaveTimeout);
   draftSaveTimeout = null;
   if (selectedPartner && messageInput) writeDraft(selectedPartner.id, messageInput.value);
+}
+
+async function openForwardPicker(message) {
+  if (!currentUser) return;
+  const me = currentUser.id;
+  const [usersResp, chatsResp] = await Promise.all([
+    fetch(`/api/users?me=${encodeURIComponent(me)}`),
+    fetch('/api/chats'),
+  ]);
+  const users = await usersResp.json();
+  const chatsData = await chatsResp.json();
+  const chats = chatsData.chats || [];
+
+  const recipients = [];
+  users.forEach((user) => recipients.push({
+    id: user.id, label: user.label || user.id, avatarData: user.avatarData, type: 'direct',
+  }));
+  chats.forEach((chat) => {
+    if (chat.type === 'group') recipients.push({
+      id: chat.id, label: chat.name || t('groupChat'), avatarData: chat.avatarData, type: 'group', memberCount: chat.memberCount,
+    });
+    else if (chat.partnerId && chat.partnerId !== me) recipients.push({
+      id: chat.partnerId, label: (chat.partnerLabel || ''),
+      avatarData: null, type: 'direct',
+    });
+  });
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.innerHTML = `
+    <div class="modal card">
+      <div class="modal-header"><strong data-i18n="forwardChoose">${t('forwardChoose')}</strong><button class="close-btn" type="button" data-i18n-title="closeBtnLabel" aria-label="Закрыть"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+      <div class="forward-list" style="max-height:340px; overflow-y:auto; border:1px solid var(--border); border-radius:var(--radius-md); padding:6px;"></div>
+    </div>
+  `;
+  const list = modal.querySelector('.forward-list');
+  const close = () => modal.remove();
+  modal.querySelector('.close-btn').addEventListener('click', close);
+  modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+
+  const createItem = (recipient) => {
+    const item = document.createElement('div');
+    item.className = 'forward-item';
+    item.style.display = 'flex';
+    item.style.alignItems = 'center';
+    item.style.gap = '10px';
+    item.style.padding = '8px 10px';
+    item.style.borderRadius = 'var(--radius-sm)';
+    item.style.cursor = 'pointer';
+    const avatar = document.createElement('div');
+    avatar.className = 'user-avatar-circle';
+    avatar.style.width = '32px';
+    avatar.style.height = '32px';
+    avatar.style.fontSize = '14px';
+    avatar.style.background = recipient.avatarData ? `url("${recipient.avatarData}") center / cover` : getAvatarBg(recipient.label || recipient.id);
+    avatar.classList.toggle('avatar-photo', Boolean(recipient.avatarData));
+    avatar.textContent = (recipient.label || recipient.id).charAt(0).toUpperCase();
+    const info = document.createElement('div');
+    info.style.flex = '1';
+    const name = document.createElement('div');
+    name.style.fontWeight = '600';
+    name.style.fontSize = '14px';
+    name.textContent = recipient.label || recipient.id;
+    const sub = document.createElement('div');
+    sub.style.fontSize = '12px';
+    sub.style.color = 'var(--muted)';
+    sub.textContent = recipient.type === 'group' ? `${t('groupMembers')} (${recipient.memberCount || 0})` : t('forwardTo');
+    info.append(name, sub);
+    item.append(avatar, info);
+    item.addEventListener('click', async (event) => {
+      event.stopPropagation();
+      close();
+      try {
+        const body = { messageId: message.id };
+        if (recipient.type === 'group') body.chatId = recipient.id;
+        else body.toId = recipient.id;
+        const response = await fetch('/api/chat/forward', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || t('errForward') || 'Unable to forward.');
+        showToast(t('messageSent'));
+        if (recipient.type === 'group') {
+          // Stay in current chat; nothing else to do.
+        } else if (selectedPartner?.id !== recipient.id) {
+          // Optionally switch to the target chat.
+        }
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+    list.appendChild(item);
+  };
+  recipients.forEach(createItem);
+  document.body.appendChild(modal);
 }
 
 let pendingNewMessages = 0;
@@ -1731,9 +2512,18 @@ async function loadMessages() {
     return;
   }
 
-  const partnerId = selectedPartner.id;
+  const isGroup = selectedPartner.type === 'group';
+  const partnerId = selectedPartner.id; // chat key for signature / unread tracking
+  const otherId = selectedPartner.partnerId || null;
+  const chatId = isGroup ? selectedPartner.chatId || null : null;
   const requestNumber = ++latestMessagesRequest;
-  const response = await fetch(`/api/chat?me=${encodeURIComponent(currentUser.id)}&other=${encodeURIComponent(partnerId)}`);
+  let url;
+  if (isGroup && chatId) {
+    url = `/api/chat?me=${encodeURIComponent(currentUser.id)}&chatId=${encodeURIComponent(chatId)}`;
+  } else {
+    url = `/api/chat?me=${encodeURIComponent(currentUser.id)}&other=${encodeURIComponent(otherId)}`;
+  }
+  const response = await fetch(url);
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Unable to load chat.');
 
@@ -1743,26 +2533,39 @@ async function loadMessages() {
 
   const messages = data.messages || [];
 
-  const hasUnreadIncoming = messages.some((message) =>
-    message.fromId === partnerId && message.toId === currentUser.id && !message.readAt
-  );
-  if (hasUnreadIncoming) {
-    try {
-      const readResponse = await fetch('/api/chat/read', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ me: currentUser.id, other: partnerId }),
-      });
-      if (!readResponse.ok) throw new Error('Unable to mark chat messages as read.');
-      const { readAt } = await readResponse.json();
-      messages.forEach((message) => {
-        if (message.fromId === partnerId && message.toId === currentUser.id && !message.readAt) {
-          message.readAt = readAt;
-        }
-      });
-    } catch (error) {
-      console.error('Unable to mark chat messages as read:', error);
+  // Mark unread incoming messages as read.
+  try {
+    if (isGroup) {
+      for (const message of messages) {
+        if (message.fromId === currentUser.id) continue;
+        const receipts = message.readReceipts || {};
+        if (receipts[currentUser.id]) continue;
+        await fetch(`/api/chat/${encodeURIComponent(message.id)}/read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    } else {
+      const hasUnreadIncoming = messages.some((message) =>
+        message.fromId === otherId && message.toId === currentUser.id && !message.readAt
+      );
+      if (hasUnreadIncoming) {
+        const readResponse = await fetch('/api/chat/read', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ me: currentUser.id, other: otherId }),
+        });
+        if (!readResponse.ok) throw new Error('Unable to mark chat messages as read.');
+        const { readAt } = await readResponse.json();
+        messages.forEach((message) => {
+          if (message.fromId === otherId && message.toId === currentUser.id && !message.readAt) {
+            message.readAt = readAt;
+          }
+        });
+      }
     }
+  } catch (error) {
+    console.error('Unable to mark chat messages as read:', error);
   }
   unreadUsers.delete(partnerId);
 
@@ -1856,6 +2659,21 @@ async function loadMessages() {
       sender.className = 'message-sender';
       sender.textContent = selectedPartner.label || item.fromId;
       div.appendChild(sender);
+    }
+
+    if (item.forwardedFrom) {
+      const hint = document.createElement('div');
+      hint.className = 'message-forwarded-hint';
+      hint.textContent = t('forwardedMessage');
+      div.appendChild(hint);
+    }
+
+    if (item.pinnedAt && !item.chatId) {
+      const pin = document.createElement('div');
+      pin.className = 'message-pinned-badge';
+      pin.title = t('pinnedMessage');
+      pin.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 3v8"/><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/></svg>';
+      div.appendChild(pin);
     }
 
     if (item.type === 'audio' && item.audioData) {
@@ -2138,11 +2956,33 @@ async function loadMessages() {
 
       const status = document.createElement('div');
       status.className = 'message-delivery-status';
-      const statusKey = item.readAt ? 'messageRead'
-        : item.deliveredAt ? 'messageDelivered'
-          : 'messageSent';
+      const isGroupMessage = Boolean(item.chatId);
+      const receipts = item.readReceipts || {};
+      const receiptCount = Object.keys(receipts).length;
+      let statusKey, statusText;
+      if (item.readAt || (isGroupMessage && receiptCount > 0)) {
+        statusKey = 'messageRead';
+        if (isGroupMessage && receiptCount > 0) {
+          const readers = Object.keys(receipts).filter((id) => id !== currentUser.id);
+          const youRead = receipts[currentUser.id];
+          const others = readers.map(reactionUserLabel);
+          if (youRead && others.length) statusText = `${t('readBy')} ${others.join(', ')}`;
+          else if (youRead) statusText = `${t('readBy')} ${t('readByYou')}`;
+          else statusText = `${t('readBy')} ${others.join(', ')}`;
+          status.title = statusText;
+        } else {
+          statusText = t(statusKey);
+        }
+      } else if (item.deliveredAt) {
+        statusKey = 'messageDelivered';
+        statusText = t(statusKey);
+      } else {
+        statusKey = 'messageSent';
+        statusText = t(statusKey);
+      }
       status.dataset.i18n = statusKey;
-      status.textContent = t(statusKey);
+      status.textContent = statusText;
+      status.classList.toggle('read', Boolean(item.readAt || receiptCount > 0));
       div.appendChild(status);
 
       const deleteButton = document.createElement('button');
@@ -2162,6 +3002,48 @@ async function loadMessages() {
         }
       });
       actionsMenu.appendChild(deleteButton);
+    }
+
+    // Forward: any non-call message can be forwarded to another chat.
+    if (item.type !== 'call') {
+      const forwardButton = document.createElement('button');
+      forwardButton.type = 'button';
+      forwardButton.className = 'message-forward-btn';
+      forwardButton.textContent = t('forward');
+      forwardButton.addEventListener('click', async () => {
+        actionsMenu.classList.add('hidden');
+        actionsToggle.setAttribute('aria-expanded', 'false');
+        await openForwardPicker(item);
+      });
+      actionsMenu.appendChild(forwardButton);
+    }
+
+    // Pin: only the sender can pin/unpin their own message.
+    if (isMe && item.type !== 'call') {
+      const pinButton = document.createElement('button');
+      pinButton.type = 'button';
+      pinButton.className = 'message-pin-btn';
+      pinButton.textContent = item.pinnedAt ? t('unpinMessage') : t('pinMessage');
+      pinButton.addEventListener('click', async () => {
+        actionsMenu.classList.add('hidden');
+        actionsToggle.setAttribute('aria-expanded', 'false');
+        try {
+          const response = await fetch(`/api/chat/${encodeURIComponent(item.id)}/pin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Unable to pin message.');
+          item.pinnedAt = result.pinned ? new Date().toISOString() : null;
+          item.pinnedBy = result.pinned ? currentUser.id : null;
+          renderedMessagesSignature = '';
+          await loadMessages();
+          showToast(result.pinned ? t('pinnedMessage') : 'Сообщение откреплено.');
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+      actionsMenu.appendChild(pinButton);
     }
 
     actionsMenu.appendChild(reactions);
@@ -2205,16 +3087,19 @@ async function sendMessage() {
   isSendingMessage = true;
   sendBtn.disabled = true;
   try {
+    const isGroup = selectedPartner.type === 'group';
+    const body = {
+      fromId: currentUser.id,
+      text,
+      imageData: pendingMessageImage,
+      replyToId: replyTarget?.id || null,
+    };
+    if (isGroup) body.chatId = selectedPartner.chatId;
+    else body.toId = selectedPartner.partnerId || selectedPartner.id;
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fromId: currentUser.id,
-        toId: selectedPartner.id,
-        text,
-        imageData: pendingMessageImage,
-        replyToId: replyTarget?.id || null,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -2517,22 +3402,31 @@ function startRealtimeEvents() {
       chatRefreshTimer = setTimeout(() => {
         const messages = pendingChatMessages;
         pendingChatMessages = [];
-        const hasNewIncomingChat = messages.some((message) =>
+        const hasNewIncomingDirect = messages.some((message) =>
           message.toId === currentUser.id
           && !currentUserList.some((user) => user.id === message.fromId)
           && selectedPartner?.id !== message.fromId
         );
+        const hasNewGroup = messages.some((message) =>
+          message.chatId
+          && !currentUserList.some((user) => user.id === message.chatId)
+          && selectedPartner?.id !== message.chatId
+        );
         messages.forEach(updateChatListFromMessage);
-        if (messages.some((message) => message.toId === currentUser.id)) {
-          const refreshChatList = hasNewIncomingChat ? searchUsers : refreshUnreadIndicators;
-          refreshChatList().catch((error) => console.error('Unable to refresh chat list:', error));
+        if (messages.some((message) => message.toId === currentUser.id || message.chatId)) {
+          loadChats().catch((error) => console.error('Unable to refresh chat list:', error));
         }
-        if (selectedPartner && messages.some((message) => message.fromId === selectedPartner.id || message.toId === selectedPartner.id)) {
+        if (selectedPartner && messages.some((message) =>
+          (message.chatId && message.chatId === selectedPartner.chatId) ||
+          message.fromId === selectedPartner.id || message.toId === selectedPartner.id
+        )) {
           loadMessages().catch((error) => console.error('Unable to refresh chat messages:', error));
         }
 
         // Sound and notifications for incoming messages.
-        const incoming = messages.filter((message) => message.toId === currentUser.id);
+        const incoming = messages.filter((message) =>
+          message.toId === currentUser.id || (message.chatId && message.fromId !== currentUser.id)
+        );
         const outsideCurrentChat = incoming.filter((message) =>
           document.hidden || message.fromId !== selectedPartner?.id);
         if (outsideCurrentChat.length) playNotificationSound();
@@ -2706,8 +3600,8 @@ async function bootChatPage() {
   renderCurrentUserBadge();
   updateChatHeader(null);
   startRealtimeEvents();
-  loadMessages();
-  searchUsers();
+  loadChats();
+  if (selectedPartner) loadMessages().catch((error) => console.error('Unable to load messages:', error));
 }
 
 if (mobileBackBtn) {
@@ -2845,33 +3739,55 @@ if (searchInput && userList && messagesBox) {
       openChatSearch();
     }
   });
-  etoRealnoSticker?.addEventListener('click', async () => {
+  async function sendSticker(stickerId) {
     if (!currentUser || !selectedPartner) {
       alert(t('alertSelectPartner'));
       return;
     }
     stickerMenu?.classList.add('hidden');
     try {
+      const isGroup = selectedPartner.type === 'group';
+      const body = { fromId: currentUser.id, stickerId, replyToId: replyTarget?.id || null };
+      if (isGroup) body.chatId = selectedPartner.chatId;
+      else body.toId = selectedPartner.partnerId || selectedPartner.id;
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromId: currentUser.id,
-          toId: selectedPartner.id,
-          stickerId: 'eto-realno',
-          replyToId: replyTarget?.id || null,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Unable to send sticker.');
-      }
+      if (!response.ok) throw new Error(data.error || 'Unable to send sticker.');
       setReplyTarget(null);
       await loadMessages();
       scrollFeedToBottom();
     } catch (error) {
       alert(error.message);
     }
+  }
+  async function sendEmojiSticker(emoji) {
+    if (!currentUser || !selectedPartner) return;
+    stickerMenu?.classList.add('hidden');
+    try {
+      const isGroup = selectedPartner.type === 'group';
+      const body = { fromId: currentUser.id, text: emoji, replyToId: replyTarget?.id || null };
+      if (isGroup) body.chatId = selectedPartner.chatId;
+      else body.toId = selectedPartner.partnerId || selectedPartner.id;
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error('Unable to send sticker.');
+      setReplyTarget(null);
+      await loadMessages();
+      scrollFeedToBottom();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+  etoRealnoSticker?.addEventListener('click', () => sendSticker('eto-realno'));
+  document.querySelectorAll('.sticker-emoji').forEach((button) => {
+    button.addEventListener('click', () => sendEmojiSticker(button.dataset.sticker || ''));
   });
   sendBtn.addEventListener('click', sendMessage);
   messageInput.addEventListener('input', () => {
@@ -2956,6 +3872,17 @@ if (searchInput && userList && messagesBox) {
       profileAvatarPreview.style.color = 'transparent';
     } catch (error) { profileImageInput.value = ''; alert(error.message); }
   });
+  newGroupBtn?.addEventListener('click', createGroup);
+  groupInfoBtn?.addEventListener('click', openGroupInfo);
+  exportChatBtn?.addEventListener('click', exportChat);
+  fileInput?.addEventListener('change', handleDocumentFile);
+  globalSearchBtn?.addEventListener('click', globalSearch);
+  blockUserBtn?.addEventListener('click', () => {
+    if (!selectedPartner || selectedPartner.type === 'group') return;
+    const already = blockedUsersCache.some((u) => String(u.id) === selectedPartner.id);
+    blockUserAction(selectedPartner.id, !already);
+  });
+
   bootChatPage();
 }
 
