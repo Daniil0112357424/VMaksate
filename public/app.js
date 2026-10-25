@@ -31,6 +31,12 @@ const translations = {
     searchLabel: 'Поиск собеседника',
     phSearch: 'Ищите по user id или имени',
     searchBtn: 'Найти',
+    createGroup: 'Создать группу',
+    previewYou: 'Вы',
+    previewImage: 'Фото',
+    previewSticker: 'Стикер',
+    previewVoice: 'Голосовое сообщение',
+    previewCall: 'Звонок',
     dialogCaption: 'Диалог',
     selectPartnerPlaceholder: 'Выберите собеседника',
     phMessage: 'Напишите сообщение...',
@@ -95,6 +101,12 @@ const translations = {
     searchLabel: 'Search contacts',
     phSearch: 'Search by User ID or name',
     searchBtn: 'Search',
+    createGroup: 'Create group',
+    previewYou: 'You',
+    previewImage: 'Photo',
+    previewSticker: 'Sticker',
+    previewVoice: 'Voice message',
+    previewCall: 'Call',
     dialogCaption: 'Conversation',
     selectPartnerPlaceholder: 'Select a conversation',
     phMessage: 'Type a message...',
@@ -159,6 +171,12 @@ const translations = {
     searchLabel: 'Buscar interlocutor',
     phSearch: 'Buscar por ID de usuario o nombre',
     searchBtn: 'Buscar',
+    createGroup: 'Crear grupo',
+    previewYou: 'Tú',
+    previewImage: 'Foto',
+    previewSticker: 'Sticker',
+    previewVoice: 'Mensaje de voz',
+    previewCall: 'Llamada',
     dialogCaption: 'Diálogo',
     selectPartnerPlaceholder: 'Seleccione un interlocutor',
     phMessage: 'Escriba un mensaje...',
@@ -375,6 +393,15 @@ function updateChatHeader(user) {
   if (videoCallBtn) videoCallBtn.disabled = callsUnavailable;
 }
 
+function getLastMessagePreview(message) {
+  if (!message) return '';
+  if (message.type === 'image') return t('previewImage');
+  if (message.type === 'sticker') return t('previewSticker');
+  if (message.type === 'audio') return t('previewVoice');
+  if (message.type === 'call') return t('previewCall');
+  return String(message.text || '');
+}
+
 function applyLanguage(lang) {
   if (!['ru', 'en', 'es'].includes(lang)) lang = 'ru';
   currentLang = lang;
@@ -538,6 +565,15 @@ function renderUsers(users) {
     name.textContent = user.label;
 
     info.appendChild(name);
+    if (user.lastMessage) {
+      const preview = document.createElement('div');
+      preview.className = 'user-item-preview';
+      const previewText = getLastMessagePreview(user.lastMessage);
+      preview.textContent = user.lastMessage.fromId === currentUser?.id
+        ? `${t('previewYou')}: ${previewText}`
+        : previewText;
+      info.appendChild(preview);
+    }
 
     const meta = document.createElement('div');
     meta.className = 'user-item-meta';
@@ -557,6 +593,7 @@ function renderUsers(users) {
     item.addEventListener('click', () => {
       selectedPartner = user;
       updateChatHeader(user);
+      document.querySelector('.chat-panel')?.classList.remove('no-chat');
       document.querySelectorAll('.user-item').forEach((el) => el.classList.remove('active'));
       item.classList.add('active');
       unreadUsers.delete(user.id);
