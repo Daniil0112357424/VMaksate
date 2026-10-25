@@ -14,6 +14,16 @@
       "id": "demo2",
       "label": "demo2",
       "password": ""
+    },
+    {
+      "id": "alice",
+      "label": "Алиса",
+      "password": "$2b$10$9e/kLcXGyrPX8XEpvnCcnOfZQ6upoPadTUoIuwZ3DzoJ/9sbXQt4S"
+    },
+    {
+      "id": "bob",
+      "label": "Боб",
+      "password": "$2b$10$y9Udtx.k6AwUYq4TgblEeeuH2nK7LiRn.g3aX37OFmGWM4SlPV2CO"
     }
   ],
   "messages": [
@@ -28,7 +38,80 @@
       "reactions": {},
       "readAt": null,
       "createdAt": "2026-10-20T16:54:25.944Z"
+    },
+    {
+      "id": "c533b23d-6444-45d0-b38e-2165a4e5df97",
+      "fromId": "alice",
+      "toId": "411fdde4-afd1-4b29-8cd9-eb9fac5f4a39",
+      "chatId": "411fdde4-afd1-4b29-8cd9-eb9fac5f4a39",
+      "text": "Привет из группы!",
+      "imageData": null,
+      "audioData": null,
+      "fileData": null,
+      "fileName": null,
+      "fileType": null,
+      "durationMs": null,
+      "replyTo": null,
+      "type": "text",
+      "stickerId": null,
+      "reactions": {},
+      "readReceipts": {},
+      "readAt": null,
+      "createdAt": "2026-10-24T19:11:43.931Z"
     }
   ],
-  "callSignals": []
+  "callSignals": [],
+  "chats": [
+    {
+      "id": "411fdde4-afd1-4b29-8cd9-eb9fac5f4a39",
+      "type": "group",
+      "name": "Тестовая группа",
+      "avatarData": null,
+      "createdBy": "alice",
+      "createdAt": "2026-10-24T19:09:42.459Z",
+      "pinnedAt": null
+    },
+    {
+      "id": "44c68758-655a-4534-bd1d-67d77e74c7a0",
+      "type": "group",
+      "name": "Тестовая группа",
+      "avatarData": null,
+      "createdBy": "alice",
+      "createdAt": "2026-10-24T19:11:43.918Z",
+      "pinnedAt": null
+    }
+  ],
+  "chatMembers": [
+    {
+      "chat_id": "411fdde4-afd1-4b29-8cd9-eb9fac5f4a39",
+      "user_id": "alice",
+      "role": "admin",
+      "joined_at": "2026-10-24T19:09:42.459Z",
+      "chatId": "411fdde4-afd1-4b29-8cd9-eb9fac5f4a39",
+      "userId": "alice",
+      "joinedAt": "2026-10-24T19:09:42.459Z"
+    },
+    {
+      "chat_id": "411fdde4-afd1-4b29-8cd9-eb9fac5f4a39",
+      "user_id": "bob",
+      "role": "member",
+      "joined_at": "2026-10-24T19:09:42.459Z",
+      "chatId": "411fdde4-afd1-4b29-8cd9-eb9fac5f4a39",
+      "userId": "bob",
+      "joinedAt": "2026-10-24T19:09:42.459Z"
+    },
+    {
+      "chatId": "44c68758-655a-4534-bd1d-67d77e74c7a0",
+      "userId": "alice",
+      "role": "admin",
+      "joinedAt": "2026-10-24T19:11:43.918Z"
+    },
+    {
+      "chatId": "44c68758-655a-4534-bd1d-67d77e74c7a0",
+      "userId": "bob",
+      "role": "member",
+      "joinedAt": "2026-10-24T19:11:43.918Z"
+    }
+  ],
+  "userBlocks": []
 }

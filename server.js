@@ -332,12 +332,105 @@ function ensureStoreFile() {
   }
 }
 
-let memoryStore = { users: [], messages: [], callSignals: [] };
+let memoryStore = {
+  users: [],
+  messages: [],
+  callSignals: [],
+  chats: [],
+  chatMembers: [],
+  userBlocks: [],
+};
 const firestoreCache = { users: null, messages: null, expiresAt: 0 };
 const FIRESTORE_CACHE_MS = Math.max(1000, Number(process.env.FIRESTORE_CACHE_MS) || 15000);
 
 function invalidateFirestoreCache() {
   firestoreCache.expiresAt = 0;
+}
+
+// --- Group chats & blocking helpers ------------------------------------------
+function ensureChatSchema() {
+  let changed = false;
+  memoryStore.chats.forEach((chat) => {
+    if (!chat.id) { chat.id = randomUUID(); changed = true; }
+    if (!chat.createdAt) { chat.createdAt = new Date().toISOString(); changed = true; }
+    if (!chat.type) { chat.type = 'group'; changed = true; }
+  });
+  memoryStore.chatMembers.forEach((m) => {
+    if (!m.chatId && m.chat_id) { m.chatId = m.chat_id; changed = true; }
+    if (!m.userId && m.user_id) { m.userId = m.user_id; changed = true; }
+    if (!m.joinedAt && m.joined_at) { m.joinedAt = m.joined_at; changed = true; }
+    if (!m.joinedAt) { m.joinedAt = new Date().toISOString(); changed = true; }
+    if (!m.role) { m.role = 'member'; changed = true; }
+  });
+  if (changed) persistStore();
+}
+
+function isUserBlocked(blockerId, blockedId) {
+  return memoryStore.userBlocks.some(
+    (b) => String(b.blockerId) === String(blockerId) && String(b.blockedId) === String(blockedId)
+  );
+}
+
+function getBlockedByUser(userId) {
+  return new Set(
+    memoryStore.userBlocks
+      .filter((b) => String(b.blockerId) === String(userId))
+      .map((b) => String(b.blockedId))
+  );
+}
+
+function getChatMembers(chatId) {
+  return memoryStore.chatMembers.filter((m) => String(m.chatId || m.chat_id) === String(chatId));
+}
+
+function getChatMemberIds(chatId) {
+  return getChatMembers(chatId).map((m) => String(m.userId));
+}
+
+function getDirectConversations(userId) {
+  const uid = String(userId);
+  const partners = new Map();
+  memoryStore.messages.forEach((message) => {
+    if (message.chatId) return;
+    const from = String(message.fromId);
+    const to = String(message.toId);
+    if (from === uid) partners.set(to, true);
+    else if (to === uid) partners.set(from, true);
+  });
+  return [...partners.keys()].map((partnerId) => ({
+    id: `direct::${partnerId}`,
+    type: 'direct',
+    partnerId,
+  }));
+}
+
+function getUserGroupChats(userId) {
+  const uid = String(userId);
+  return memoryStore.chats.filter((chat) =>
+    getChatMemberIds(chat.id).includes(uid)
+  );
+}
+
+function lastMessageForConversation(partnerId, currentUserId) {
+  let best = null;
+  memoryStore.messages.forEach((message) => {
+    if (message.chatId) return;
+    const isMatch =
+      (String(message.fromId) === partnerId && String(message.toId) === currentUserId) ||
+      (String(message.toId) === partnerId && String(message.fromId) === currentUserId);
+    if (!isMatch || message.type === 'call') return;
+    if (!best || String(message.createdAt) > String(best.createdAt)) best = message;
+  });
+  return best;
+}
+
+function lastMessageForGroup(chatId) {
+  let best = null;
+  memoryStore.messages.forEach((message) => {
+    if (String(message.chatId) !== String(chatId) || message.type === 'call') return;
+    if (!best || String(message.createdAt) > String(best.createdAt)) best = message;
+  });
+  return best;
 }
 
 async function getFirestoreUsers() {
@@ -499,6 +592,9 @@ async function persistStore() {
       users: JSON.parse(JSON.stringify(memoryStore.users)),
       messages: JSON.parse(JSON.stringify(memoryStore.messages)),
       callSignals: JSON.parse(JSON.stringify(memoryStore.callSignals)),
+      chats: JSON.parse(JSON.stringify(memoryStore.chats)),
+      chatMembers: JSON.parse(JSON.stringify(memoryStore.chatMembers)),
+      userBlocks: JSON.parse(JSON.stringify(memoryStore.userBlocks)),
     };
     await saveStoreToDiskOrDb(snapshot);
   } catch (error) {
@@ -516,7 +612,11 @@ const storeReady = readStoreFromDiskOrDb().then((data) => {
     users: Array.isArray(data.users) ? data.users : [],
     messages: Array.isArray(data.messages) ? data.messages : [],
     callSignals: Array.isArray(data.callSignals) ? data.callSignals : [],
+    chats: Array.isArray(data.chats) ? data.chats : [],
+    chatMembers: Array.isArray(data.chatMembers) ? data.chatMembers : [],
+    userBlocks: Array.isArray(data.userBlocks) ? data.userBlocks : [],
   };
+  ensureChatSchema();
   if (!supabaseEnabled) pruneDemoUsers();
 }).catch((err) => console.error('Initial store load failed:', err));
 
@@ -532,6 +632,9 @@ function toAppMessage(message) {
     text: String(message.text || ''),
     imageData: message.image_data || (type === 'sticker' ? getStickerAssetUrl(stickerId) : null),
     audioData: message.audio_data || message.audioData || null,
+    fileData: message.file_data || message.fileData || null,
+    fileName: message.file_name || message.fileName || null,
+    fileType: message.file_type || message.fileType || null,
     durationMs: Number.isFinite(Number(message.duration_ms ?? message.durationMs))
       ? Number(message.duration_ms ?? message.durationMs)
       : null,
@@ -547,6 +650,10 @@ function toAppMessage(message) {
     callMode: message.call_mode || null,
     callStatus: message.call_status || null,
     stickerId,
+    chatId: message.chat_id || message.chatId || null,
+    readReceipts: message.read_receipts || message.readReceipts || {},
+    pinnedAt: message.pinned_at || message.pinnedAt || null,
+    pinnedBy: message.pinned_by || message.pinnedBy || null,
     reactions: message.reactions || {},
     deliveredAt: message.delivered_at || message.deliveredAt || null,
     readAt: message.read_at || null,
@@ -563,6 +670,9 @@ function toDatabaseMessage(message) {
     text: message.text,
     image_data: message.imageData || null,
     audio_data: message.audioData || null,
+    file_data: message.fileData || null,
+    file_name: message.fileName || null,
+    file_type: message.fileType || null,
     duration_ms: Number.isFinite(Number(message.durationMs)) ? Number(message.durationMs) : null,
     reply_to: message.replyTo || null,
     type: message.type || 'text',
@@ -570,6 +680,10 @@ function toDatabaseMessage(message) {
     call_mode: message.callMode || null,
     call_status: message.callStatus || null,
     sticker_id: message.stickerId || null,
+    chat_id: message.chatId || null,
+    read_receipts: message.readReceipts || {},
+    pinned_at: message.pinnedAt || null,
+    pinned_by: message.pinnedBy || null,
     reactions: message.reactions || {},
     delivered_at: message.deliveredAt || null,
     read_at: message.readAt || null,
@@ -595,6 +709,15 @@ function getStickerAssetUrl(stickerId) {
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
+
+function validFileData(value) {
+  if (typeof value !== 'string' || !/^data:[^/]+\/[^;,]+;base64,[a-z0-9+/=]+$/i.test(value)) {
+    return false;
+  }
+  const base64Data = value.slice(value.indexOf(',') + 1);
+  return Buffer.byteLength(base64Data, 'base64') <= MAX_FILE_SIZE_BYTES;
+}
 
 function validImageData(value) {
   if (typeof value !== 'string' || !/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(value)) {
@@ -699,9 +822,12 @@ app.get('/api/users', async (req, res) => {
   const storeMessages = firebaseEnabled && firebaseDb && !search
     ? await getFirestoreMessages()
     : memoryStore.messages;
+  const blockedByMe = firebaseEnabled && firebaseDb
+    ? new Set()
+    : getBlockedByUser(me);
   let users = storeUsers
     .map((user) => sanitizeUser(user))
-    .filter((user) => user.id !== me);
+    .filter((user) => user.id !== me && !blockedByMe.has(user.id));
 
   if (!search) {
     if (me) {
@@ -1127,15 +1253,69 @@ app.get('/api/chat/unread', async (req, res) => {
 app.get('/api/chat', async (req, res) => {
   const me = String(req.query.me || '');
   const other = String(req.query.other || '');
+  const chatId = String(req.query.chatId || '');
 
-  if (!me || !other) {
-    return res.status(400).json({ error: 'Need both ids.' });
+  if (!me) {
+    return res.status(400).json({ error: 'Need user id.' });
   }
   if (req.cookies?.sessionUserId !== me) {
     return res.status(403).json({ error: 'Chat access denied.' });
   }
 
   await storeReady;
+
+  if (chatId) {
+    // Group chat history.
+    const chat = supabaseEnabled
+      ? (await supabase.from('chats').select('*').eq('id', chatId).maybeSingle()).data
+      : memoryStore.chats.find((c) => String(c.id) === chatId);
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat not found.' });
+    }
+    const memberIds = supabaseEnabled
+      ? ((await supabase.from('chat_members').select('user_id').eq('chat_id', chatId)).data || []).map((m) => String(m.user_id))
+      : getChatMemberIds(chatId);
+    if (!memberIds.includes(me)) {
+      return res.status(403).json({ error: 'You are not a member of this group.' });
+    }
+
+    if (supabaseEnabled) {
+      const { data, error } = await supabase.from('messages')
+        .select('id, from_id, to_id, text, image_data, audio_data, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, chat_id, read_receipts, pinned_at, pinned_by, reactions, delivered_at, read_at, edited_at, created_at')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return res.json({ chatKey: chatId, messages: (data || []).map(toAppMessage) });
+    }
+
+    const allMessages = firebaseEnabled && firebaseDb
+      ? await getFirestoreMessages()
+      : memoryStore.messages;
+    const conversationMessages = allMessages.filter((item) => String(item.chatId) === chatId);
+    const incoming = conversationMessages.filter((item) => String(item.fromId) !== me);
+    const pendingDelivery = incoming.filter((item) => !item.deliveredAt);
+    const deliveredAt = pendingDelivery.length ? new Date().toISOString() : null;
+    if (deliveredAt && firebaseEnabled && firebaseDb) {
+      await Promise.all(pendingDelivery.map((message) =>
+        firebaseDb.collection('messages').doc(String(message.id)).update({ deliveredAt })
+      ));
+      pendingDelivery.forEach((message) => { message.deliveredAt = deliveredAt; });
+      invalidateFirestoreCache();
+    } else if (deliveredAt) {
+      pendingDelivery.forEach((message) => { message.deliveredAt = deliveredAt; });
+      persistStore();
+      publishConversationUpdate(me, chatId);
+    }
+    const messages = conversationMessages
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    res.json({ chatKey: chatId, messages });
+    return;
+  }
+
+  if (!other) {
+    return res.status(400).json({ error: 'Need both ids.' });
+  }
 
   if (supabaseEnabled) {
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
@@ -1192,26 +1372,72 @@ app.get('/api/chat', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
   try {
     const {
-      fromId, toId, text = '', imageData = null, stickerId = null,
+      fromId, toId, chatId, text = '', imageData = null, stickerId = null,
       audioData = null, durationMs = null, replyToId = null,
+      fileData = null, fileName = null, fileType = null,
     } = req.body || {};
 
-    if (!fromId || !toId
-      || (!String(text).trim() && !imageData && !stickerId && !audioData)
+    const senderId = String(fromId || '');
+    const targetId = String(toId || '');
+    const groupChatId = String(chatId || '');
+
+    if (!senderId
+      || (!String(text).trim() && !imageData && !stickerId && !audioData && !fileData)
       || String(text).length > 4000
       || (imageData && !validImageData(imageData))
       || (audioData && !validAudioData(audioData))
-      || (stickerId && stickerId !== 'eto-realno')) {
+      || (stickerId && stickerId !== 'eto-realno')
+      || (fileData && !validFileData(fileData))) {
       return res.status(400).json({ error: 'Invalid message.' });
+    }
+    if (fileData && (!fileName || String(fileName).length > 200)) {
+      return res.status(400).json({ error: 'Invalid file name.' });
     }
     if (durationMs !== null && (!Number.isFinite(Number(durationMs)) || Number(durationMs) < 0 || Number(durationMs) > 10 * 60 * 1000)) {
       return res.status(400).json({ error: 'Invalid message.' });
     }
-    if (req.cookies?.sessionUserId !== String(fromId)) {
+    if (req.cookies?.sessionUserId !== senderId) {
       return res.status(403).json({ error: 'Chat access denied.' });
     }
 
+    // Group chat: sender must be a member; target is the chat itself.
+    let isGroup = false;
+    if (groupChatId) {
+      isGroup = true;
+    } else if (!targetId) {
+      return res.status(400).json({ error: 'Invalid message.' });
+    }
+
     await storeReady;
+
+    if (isGroup) {
+      const chat = memoryStore.chats.find((c) => String(c.id) === groupChatId);
+      if (!chat || chat.type !== 'group') {
+        return res.status(400).json({ error: 'Group chat not found.' });
+      }
+      if (!getChatMemberIds(groupChatId).includes(senderId)) {
+        return res.status(403).json({ error: 'You are not a member of this group.' });
+      }
+      // Blocked members cannot send to the group.
+      if (getBlockedByUser(senderId).size > 0) {
+        const blocked = getBlockedByUser(senderId);
+        const members = getChatMemberIds(groupChatId);
+        if (members.some((m) => blocked.has(m))) {
+          return res.status(403).json({ error: 'You have blocked a member of this group.' });
+        }
+      }
+    } else {
+      // Direct message: neither user may have blocked the other.
+      if (isUserBlocked(senderId, targetId) || isUserBlocked(targetId, senderId)) {
+        return res.status(403).json({ error: 'You cannot message this user.' });
+      }
+      if (!memoryStore.users.some((user) => user.id === senderId)) {
+        ensureUser(senderId, senderId);
+      }
+      if (!memoryStore.users.some((user) => user.id === targetId)) {
+        ensureUser(targetId, targetId);
+      }
+    }
 
     // A reply is stored as a small denormalized snapshot of the original
     // message, so quotes keep working even if the original is deleted later.
@@ -1220,10 +1446,10 @@ app.post('/api/chat', async (req, res) => {
       const findReply = async () => {
         if (supabaseEnabled) {
           const { data, error } = await supabase.from('messages')
-            .select('id, from_id, to_id, text, type, sticker_id')
+            .select('id, from_id, to_id, text, type, sticker_id, chat_id')
             .eq('id', String(replyToId)).maybeSingle();
           if (error) throw error;
-          return data ? { id: data.id, from_id: data.from_id, to_id: data.to_id, text: data.text, type: data.type, sticker_id: data.sticker_id } : null;
+          return data ? { id: data.id, from_id: data.from_id, to_id: data.to_id, text: data.text, type: data.type, sticker_id: data.sticker_id, chat_id: data.chat_id } : null;
         }
         if (firebaseEnabled && firebaseDb) {
           const doc = await firebaseDb.collection('messages').doc(String(replyToId)).get();
@@ -1235,8 +1461,11 @@ app.post('/api/chat', async (req, res) => {
       if (replySource) {
         const sourceFrom = String(replySource.from_id ?? replySource.fromId ?? '');
         const sourceTo = String(replySource.to_id ?? replySource.toId ?? '');
-        const sameConversation = (sourceFrom === String(fromId) && sourceTo === String(toId))
-          || (sourceFrom === String(toId) && sourceTo === String(fromId));
+        const sourceChatId = replySource.chat_id || replySource.chatId || null;
+        const sameConversation = isGroup
+          ? String(sourceChatId) === groupChatId
+          : (sourceFrom === senderId && sourceTo === targetId)
+            || (sourceFrom === targetId && sourceTo === senderId);
         if (sameConversation) {
           replyTo = {
             id: String(replySource.id),
@@ -1251,16 +1480,21 @@ app.post('/api/chat', async (req, res) => {
 
     const message = {
       id: randomUUID(),
-      fromId: String(fromId),
-      toId: String(toId),
+      fromId: senderId,
+      toId: isGroup ? groupChatId : targetId,
+      chatId: isGroup ? groupChatId : null,
       text: String(text),
       imageData,
       audioData,
+      fileData,
+      fileName: fileData ? String(fileName || 'file') : null,
+      fileType: fileData ? String(fileType || 'application/octet-stream') : null,
       durationMs: durationMs === null ? null : Number(durationMs),
       replyTo,
-      type: stickerId ? 'sticker' : imageData ? 'image' : audioData ? 'audio' : 'text',
+      type: stickerId ? 'sticker' : imageData ? 'image' : audioData ? 'audio' : fileData ? 'file' : 'text',
       stickerId,
       reactions: {},
+      readReceipts: {},
       readAt: null,
       createdAt: new Date().toISOString(),
     };
@@ -1276,17 +1510,13 @@ app.post('/api/chat', async (req, res) => {
       // caused concurrent requests to delete each other's messages.
       await Promise.all([
         firebaseDb.collection('messages').doc(message.id).set(message),
-        firebaseDb.collection('users').doc(String(fromId)).set({ id: String(fromId) }, { merge: true }),
-        firebaseDb.collection('users').doc(String(toId)).set({ id: String(toId) }, { merge: true }),
+        firebaseDb.collection('users').doc(String(senderId)).set({ id: String(senderId) }, { merge: true }),
       ]);
+      if (!isGroup) {
+        await firebaseDb.collection('users').doc(String(targetId)).set({ id: String(targetId) }, { merge: true });
+      }
       invalidateFirestoreCache();
     } else {
-      if (!memoryStore.users.some((user) => user.id === String(fromId))) {
-        ensureUser(String(fromId), String(fromId));
-      }
-      if (!memoryStore.users.some((user) => user.id === String(toId))) {
-        ensureUser(String(toId), String(toId));
-      }
       memoryStore.messages.push(message);
       persistStore();
     }
@@ -1574,6 +1804,735 @@ app.post('/api/calls/signal', async (req, res) => {
   publishUserEvent(signal.toId, 'call-signal', signal);
   res.json({ ok: true });
 });
+
+// ============================================================================
+// Groups, forwarding, pinning, blocking, search, export
+// ============================================================================
+
+app.get('/api/chats', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  await storeReady;
+
+  const chats = [];
+  if (supabaseEnabled) {
+    const { data: memberships, error: membershipsError } = await supabase
+      .from('chat_members').select('chat_id, user_id').eq('user_id', userId);
+    if (membershipsError) throw membershipsError;
+    const chatIds = (memberships || []).map((m) => String(m.chat_id));
+    if (chatIds.length) {
+      const { data: groupChats, error: groupChatsError } = await supabase
+        .from('chats').select('*').in('id', chatIds);
+      if (groupChatsError) throw groupChatsError;
+      (groupChats || []).forEach((chat) => {
+        chats.push({
+          id: String(chat.id), type: 'group', name: chat.name || 'Групповой чат',
+          avatarData: chat.avatar_data || null, createdBy: String(chat.created_by || ''),
+          createdAt: String(chat.created_at), pinnedAt: chat.pinned_at || null,
+          memberCount: chatIds.filter((id) => id === String(chat.id)).length,
+        });
+      });
+    }
+    // Direct conversations derived from messages.
+    const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
+      supabase.from('messages').select('from_id, to_id, created_at, text').eq('from_id', userId).is('chat_id', null),
+      supabase.from('messages').select('from_id, to_id, created_at, text').eq('to_id', userId).is('chat_id', null),
+    ]);
+    if (sentError || receivedError) throw sentError || receivedError;
+    const directPartners = new Set();
+    [...(sent || []), ...(received || [])].forEach((message) => {
+      const partner = String(message.from_id) === userId ? String(message.to_id) : String(message.from_id);
+      if (partner !== userId) directPartners.add(partner);
+    });
+    const blockedByMe = getBlockedByUser(userId);
+    directPartners.forEach((partnerId) => {
+      if (blockedByMe.has(partnerId)) return;
+      chats.push({ id: `direct::${partnerId}`, type: 'direct', partnerId });
+    });
+  } else {
+    const blockedByMe = getBlockedByUser(userId);
+    getDirectConversations(userId).forEach((c) => {
+      if (!blockedByMe.has(c.partnerId)) chats.push(c);
+    });
+    getUserGroupChats(userId).forEach((chat) => {
+      const memberIds = getChatMemberIds(chat.id);
+      chats.push({
+        id: String(chat.id), type: 'group', name: chat.name || 'Групповой чат',
+        avatarData: chat.avatarData || null, createdBy: String(chat.createdBy || ''),
+        createdAt: String(chat.createdAt), pinnedAt: chat.pinnedAt || null,
+        memberCount: memberIds.length,
+      });
+    });
+  }
+
+  // Attach last message per chat.
+  const me = String(userId);
+  chats.forEach((chat) => {
+    let last = null;
+    if (chat.type === 'direct') {
+      last = lastMessageForConversation(chat.partnerId, me);
+    } else {
+      last = lastMessageForGroup(chat.id);
+    }
+    if (last) {
+      chat.lastMessage = {
+        id: last.id,
+        fromId: last.fromId,
+        text: last.text,
+        type: last.type || 'text',
+        createdAt: last.createdAt,
+        stickerId: last.stickerId || null,
+      };
+    }
+  });
+  chats.sort((a, b) => {
+    const pa = a.pinnedAt ? 1 : 0;
+    const pb = b.pinnedAt ? 1 : 0;
+    if (pb !== pa) return pb - pa;
+    const ta = a.lastMessage ? Date.parse(a.lastMessage.createdAt) : 0;
+    const tb = b.lastMessage ? Date.parse(b.lastMessage.createdAt) : 0;
+    return tb - ta;
+  });
+
+  res.json({ chats });
+});
+
+app.post('/api/chats', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const { name, memberIds = [], avatarData } = req.body || {};
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  if (!name || !String(name).trim() || String(name).trim().length > 80) {
+    return res.status(400).json({ error: 'Неверное имя группы.' });
+    }
+  if (avatarData !== null && avatarData !== undefined && !validImageData(avatarData)) {
+    return res.status(400).json({ error: 'Неверная картинка группы.' });
+  }
+
+  await storeReady;
+  const cleanMemberIds = [...new Set(memberIds.map(String).filter(Boolean))];
+  if (!cleanMemberIds.includes(userId)) cleanMemberIds.push(userId);
+  if (cleanMemberIds.length < 2) {
+    return res.status(400).json({ error: 'В группе должно быть как минимум два участника.' });
+  }
+
+  const chat = {
+    id: randomUUID(),
+    type: 'group',
+    name: String(name).trim(),
+    avatarData: avatarData || null,
+    createdBy: String(userId),
+    createdAt: new Date().toISOString(),
+    pinnedAt: null,
+  };
+
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('chats').insert({
+      id: chat.id, name: chat.name, avatar_data: chat.avatarData,
+      created_by: chat.createdBy, created_at: chat.createdAt,
+    }).select().single();
+    if (error) throw error;
+    const members = cleanMemberIds.map((memberId) => ({
+      chat_id: chat.id, user_id: memberId,
+      role: memberId === userId ? 'admin' : 'member',
+      joined_at: new Date().toISOString(),
+    }));
+    const { error: membersError } = await supabase.from('chat_members').insert(members);
+    if (membersError) throw membersError;
+  } else if (firebaseEnabled && firebaseDb) {
+    const chatRef = firebaseDb.collection('chats').doc(chat.id);
+    await chatRef.set({
+      id: chat.id, name: chat.name, avatar_data: chat.avatarData,
+      created_by: chat.createdBy, created_at: chat.createdAt,
+    });
+    const batch = firebaseDb.batch();
+    cleanMemberIds.forEach((memberId) => {
+      const ref = firebaseDb.collection('chat_members').doc();
+      batch.set(ref, {
+        chat_id: chat.id, user_id: memberId,
+        role: memberId === userId ? 'admin' : 'member',
+        joined_at: new Date().toISOString(),
+      });
+    });
+    await batch.commit();
+    invalidateFirestoreCache();
+  } else {
+    memoryStore.chats.push(chat);
+    cleanMemberIds.forEach((memberId) => {
+      memoryStore.chatMembers.push({
+        chatId: chat.id, userId: memberId,
+        role: memberId === userId ? 'admin' : 'member',
+        joinedAt: new Date().toISOString(),
+      });
+    });
+    persistStore();
+  }
+
+  res.json({ ok: true, chat: { ...chat, memberCount: cleanMemberIds.length } });
+});
+
+app.get('/api/chats/:chatId', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const chatId = String(req.params.chatId || '');
+  if (!userId || !chatId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  let chat, members;
+  if (supabaseEnabled) {
+    const chatData = (await supabase.from('chats').select('*').eq('id', chatId).maybeSingle()).data;
+    if (!chatData) return res.status(404).json({ error: 'Chat not found.' });
+    chat = { id: String(chatData.id), type: 'group', name: chatData.name, avatarData: chatData.avatar_data, createdBy: String(chatData.created_by), createdAt: String(chatData.createdAt), pinnedAt: chatData.pinned_at };
+    const memberData = (await supabase.from('chat_members').select('user_id, role').eq('chat_id', chatId)).data || [];
+    members = memberData.map((m) => ({ userId: String(m.user_id), role: m.role }));
+  } else {
+    chat = memoryStore.chats.find((c) => String(c.id) === chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+    members = getChatMembers(chatId).map((m) => ({ userId: String(m.userId), role: m.role }));
+  }
+
+  if (!getChatMemberIds(chatId).includes(userId)) {
+    return res.status(403).json({ error: 'You are not a member of this group.' });
+  }
+
+  const userMap = new Map();
+  if (supabaseEnabled) {
+    const ids = members.map((m) => m.userId);
+    if (ids.length) {
+      const { data: users, error: usersError } = await supabase.from('users').select('id, label, avatar_data, about').in('id', ids);
+      if (usersError) throw usersError;
+      (users || []).forEach((u) => userMap.set(String(u.id), sanitizeUser(u)));
+    }
+  } else {
+    const allUsers = firebaseEnabled && firebaseDb ? await getFirestoreUsers() : memoryStore.users;
+    members.forEach((m) => {
+      const u = allUsers.find((user) => String(user.id) === m.userId);
+      if (u) userMap.set(m.userId, sanitizeUser(u));
+    });
+  }
+
+  res.json({ ok: true, chat: { ...chat, memberCount: members.length }, members: members.map((m) => ({ ...m, user: userMap.get(m.userId) || { id: m.userId, label: m.userId } })) });
+});
+
+app.patch('/api/chats/:chatId', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const chatId = String(req.params.chatId || '');
+  const { name, avatarData } = req.body || {};
+  if (!userId || !chatId) return res.status(400).json({ error: 'Invalid request.' });
+  if (name !== undefined && (!String(name).trim() || String(name).trim().length > 80)) {
+    return res.status(400).json({ error: 'Неверное имя группы.' });
+  }
+  if (avatarData !== null && avatarData !== undefined && !validImageData(avatarData)) {
+    return res.status(400).json({ error: 'Неверная картинка группы.' });
+  }
+  await storeReady;
+
+  if (supabaseEnabled) {
+    const membership = (await supabase.from('chat_members').select('role').eq('chat_id', chatId).eq('user_id', userId).maybeSingle()).data;
+    if (!membership || membership.role !== 'admin') {
+      return res.status(403).json({ error: 'Only group admin can edit the group.' });
+    }
+    const update = {};
+    if (name !== undefined) update.name = String(name).trim();
+    if (avatarData !== null && avatarData !== undefined) update.avatar_data = avatarData;
+    const { data, error } = await supabase.from('chats').update(update).eq('id', chatId).select().single();
+    if (error) throw error;
+    return res.json({ ok: true, chat: { id: String(data.id), name: data.name, avatarData: data.avatar_data } });
+  }
+
+  const chat = memoryStore.chats.find((c) => String(c.id) === chatId);
+  if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+  const membership = memoryStore.chatMembers.find((m) => String(m.chatId) === chatId && String(m.userId) === userId);
+  if (!membership || membership.role !== 'admin') {
+    return res.status(403).json({ error: 'Only group admin can edit the group.' });
+  }
+  if (name !== undefined) chat.name = String(name).trim();
+  if (avatarData !== null && avatarData !== undefined) chat.avatarData = avatarData;
+  persistStore();
+  res.json({ ok: true, chat: { id: chat.id, name: chat.name, avatarData: chat.avatarData } });
+});
+
+app.delete('/api/chats/:chatId', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const chatId = String(req.params.chatId || '');
+  if (!userId || !chatId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  if (supabaseEnabled) {
+    const membership = (await supabase.from('chat_members').select('role').eq('chat_id', chatId).eq('user_id', userId).maybeSingle()).data;
+    if (!membership) return res.status(403).json({ error: 'You are not a member of this group.' });
+    await supabase.from('chat_members').delete().eq('chat_id', chatId).eq('user_id', userId);
+    const remaining = (await supabase.from('chat_members').select('user_id').eq('chat_id', chatId)).data || [];
+    if (remaining.length === 0 && membership.role === 'admin') {
+      await supabase.from('messages').delete().eq('chat_id', chatId);
+      await supabase.from('chats').delete().eq('id', chatId);
+    }
+    return res.json({ ok: true, left: true });
+  }
+
+  const chat = memoryStore.chats.find((c) => String(c.id) === chatId);
+  if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+  const membership = memoryStore.chatMembers.find((m) => String(m.chatId) === chatId && String(m.userId) === userId);
+  if (!membership) return res.status(403).json({ error: 'You are not a member of this group.' });
+  memoryStore.chatMembers = memoryStore.chatMembers.filter((m) => !(String(m.chatId) === chatId && String(m.userId) === userId));
+  const remaining = memoryStore.chatMembers.filter((m) => String(m.chatId) === chatId);
+  if (remaining.length === 0 && membership.role === 'admin') {
+    memoryStore.chats = memoryStore.chats.filter((c) => String(c.id) !== chatId);
+    memoryStore.messages = memoryStore.messages.filter((m) => String(m.chatId) !== chatId);
+  }
+  persistStore();
+  res.json({ ok: true, left: true, deleted: remaining.length === 0 && membership.role === 'admin' });
+});
+
+app.post('/api/chats/:chatId/members', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const chatId = String(req.params.chatId || '');
+  const { memberIds = [] } = req.body || {};
+  if (!userId || !chatId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  const addIds = [...new Set(memberIds.map(String).filter(Boolean))];
+  if (addIds.length === 0) return res.status(400).json({ error: 'Need member ids.' });
+
+  if (supabaseEnabled) {
+    const membership = (await supabase.from('chat_members').select('role').eq('chat_id', chatId).eq('user_id', userId).maybeSingle()).data;
+    if (!membership || membership.role !== 'admin') {
+      return res.status(403).json({ error: 'Only group admin can add members.' });
+    }
+    const rows = addIds.filter((id) => id !== userId).map((memberId) => ({
+      chat_id: chatId, user_id: memberId, role: 'member', joined_at: new Date().toISOString(),
+    }));
+    if (rows.length) {
+      const { error } = await supabase.from('chat_members').insert(rows);
+      if (error) throw error;
+    }
+  } else {
+    const chat = memoryStore.chats.find((c) => String(c.id) === chatId);
+    if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+    const membership = memoryStore.chatMembers.find((m) => String(m.chatId) === chatId && String(m.userId) === userId);
+    if (!membership || membership.role !== 'admin') {
+      return res.status(403).json({ error: 'Only group admin can add members.' });
+    }
+    addIds.forEach((memberId) => {
+      if (memberId === userId) return;
+      if (memoryStore.chatMembers.some((m) => String(m.chatId) === chatId && String(m.userId) === memberId)) return;
+      memoryStore.chatMembers.push({ chat_id: chatId, user_id: memberId, role: 'member', joined_at: new Date().toISOString() });
+    });
+    persistStore();
+  }
+  res.json({ ok: true, added: addIds.length });
+});
+
+app.delete('/api/chats/:chatId/members/:userId', async (req, res) => {
+  const actorId = req.cookies?.sessionUserId;
+  const chatId = String(req.params.chatId || '');
+  const targetId = String(req.params.userId || '');
+  if (!actorId || !chatId || !targetId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  if (supabaseEnabled) {
+    const actor = (await supabase.from('chat_members').select('role').eq('chat_id', chatId).eq('user_id', actorId).maybeSingle()).data;
+    const target = (await supabase.from('chat_members').select('role').eq('chat_id', chatId).eq('user_id', targetId).maybeSingle()).data;
+    if (!target) return res.status(404).json({ error: 'Member not found.' });
+    if (String(targetId) === actorId) {
+      if (actor && actor.role === 'admin') {
+        const remaining = (await supabase.from('chat_members').select('user_id').eq('chat_id', chatId)).data || [];
+        if (remaining.length === 1) {
+          return res.status(400).json({ error: 'The last admin cannot leave the group.' });
+        }
+      }
+      await supabase.from('chat_members').delete().eq('chat_id', chatId).eq('user_id', actorId);
+    } else {
+      if (!actor || actor.role !== 'admin') {
+        return res.status(403).json({ error: 'Only group admin can remove members.' });
+      }
+      await supabase.from('chat_members').delete().eq('chat_id', chatId).eq('user_id', targetId);
+    }
+    return res.json({ ok: true });
+  }
+
+  const membership = memoryStore.chatMembers.find((m) => String(m.chatId) === chatId && String(m.userId) === actorId);
+  const targetMembership = memoryStore.chatMembers.find((m) => String(m.chatId) === chatId && String(m.userId) === targetId);
+  if (!targetMembership) return res.status(404).json({ error: 'Member not found.' });
+  if (String(targetId) === actorId) {
+    if (!membership || membership.role !== 'admin') {
+      return res.status(403).json({ error: 'Only group admin can leave.' });
+    }
+    const remaining = memoryStore.chatMembers.filter((m) => String(m.chatId) === chatId);
+    if (remaining.length === 1) {
+      return res.status(400).json({ error: 'The last admin cannot leave the group.' });
+    }
+    memoryStore.chatMembers = memoryStore.chatMembers.filter((m) => !(String(m.chatId) === chatId && String(m.userId) === actorId));
+  } else {
+    if (!membership || membership.role !== 'admin') {
+      return res.status(403).json({ error: 'Only group admin can remove members.' });
+    }
+    memoryStore.chatMembers = memoryStore.chatMembers.filter((m) => !(String(m.chatId) === chatId && String(m.userId) === targetId));
+  }
+  persistStore();
+  res.json({ ok: true });
+});
+
+app.post('/api/chat/forward', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const { messageId, toId, chatId } = req.body || {};
+  if (!userId || !messageId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  let source;
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages').select('*').eq('id', String(messageId)).maybeSingle();
+    if (error) throw error;
+    source = data ? toAppMessage(data) : null;
+  } else if (firebaseEnabled && firebaseDb) {
+    const doc = await firebaseDb.collection('messages').doc(String(messageId)).get();
+    source = doc.exists ? toAppMessage({ id: doc.id, ...doc.data() }) : null;
+  } else {
+    source = memoryStore.messages.find((item) => item.id === String(messageId)) || null;
+  }
+  if (!source) return res.status(404).json({ error: 'Message not found.' });
+  if (source.type === 'call') return res.status(400).json({ error: 'Cannot forward a call message.' });
+
+  const targetChatId = String(chatId || '');
+  const targetUserId = String(toId || '');
+  let isGroup = false;
+  if (targetChatId) isGroup = true;
+  else if (!targetUserId) return res.status(400).json({ error: 'Need recipient.' });
+
+  if (isGroup) {
+    if (!getChatMemberIds(targetChatId).includes(userId)) {
+      return res.status(403).json({ error: 'You are not a member of this group.' });
+    }
+  } else {
+    if (isUserBlocked(userId, targetUserId) || isUserBlocked(targetUserId, userId)) {
+      return res.status(403).json({ error: 'You cannot message this user.' });
+    }
+    if (!memoryStore.users.some((u) => u.id === targetUserId)) {
+      ensureUser(targetUserId, targetUserId);
+    }
+  }
+
+  const forwarded = {
+    id: randomUUID(),
+    fromId: userId,
+    toId: isGroup ? targetChatId : targetUserId,
+    chatId: isGroup ? targetChatId : null,
+    text: source.text,
+    imageData: source.imageData,
+    audioData: source.audioData,
+    durationMs: source.durationMs,
+    replyTo: null,
+    type: source.type,
+    stickerId: source.stickerId,
+    reactions: {},
+    readReceipts: {},
+    forwardedFrom: { id: source.id, fromId: source.fromId },
+    readAt: null,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (supabaseEnabled) {
+    const { error } = await supabase.from('messages').insert(toDatabaseMessage(forwarded));
+    if (error) throw error;
+  } else if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('messages').doc(forwarded.id).set(forwarded);
+    invalidateFirestoreCache();
+  } else {
+    memoryStore.messages.push(forwarded);
+    persistStore();
+  }
+  publishChatMessage(forwarded);
+  res.json({ ok: true, message: forwarded });
+});
+
+app.post('/api/chat/:messageId/pin', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const messageId = String(req.params.messageId || '');
+  if (!userId || !messageId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  let message;
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages').select('*').eq('id', messageId).maybeSingle();
+    if (error) throw error;
+    message = data ? toAppMessage(data) : null;
+  } else if (firebaseEnabled && firebaseDb) {
+    const doc = await firebaseDb.collection('messages').doc(messageId).get();
+    message = doc.exists ? toAppMessage({ id: doc.id, ...doc.data() }) : null;
+  } else {
+    message = memoryStore.messages.find((item) => item.id === messageId) || null;
+  }
+  if (!message) return res.status(404).json({ error: 'Message not found.' });
+
+  const pinned = message.pinnedAt === null;
+  const pinnedAt = pinned ? new Date().toISOString() : null;
+
+  if (supabaseEnabled) {
+    const { error } = await supabase.from('messages').update({ pinned_at: pinnedAt, pinned_by: pinned ? userId : null }).eq('id', messageId);
+    if (error) throw error;
+  } else if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('messages').doc(messageId).update({ pinnedAt, pinnedBy: pinned ? userId : null });
+    invalidateFirestoreCache();
+  } else {
+    const stored = memoryStore.messages.find((item) => item.id === messageId);
+    if (stored) { stored.pinnedAt = pinnedAt; stored.pinnedBy = pinned ? userId : null; persistStore(); }
+  }
+  res.json({ ok: true, pinned, messageId });
+});
+
+app.get('/api/chat/:messageId/read-receipts', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const messageId = String(req.params.messageId || '');
+  if (!userId || !messageId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  let message;
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages').select('from_id, to_id, chat_id, read_receipts').eq('id', messageId).maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Message not found.' });
+    const receipts = data.read_receipts || {};
+    return res.json({ ok: true, receipts: Object.entries(receipts).map(([userId, ts]) => ({ userId, at: ts })) });
+  }
+  if (firebaseEnabled && firebaseDb) {
+    const doc = await firebaseDb.collection('messages').doc(messageId).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Message not found.' });
+    const receipts = doc.data().readReceipts || {};
+    return res.json({ ok: true, receipts: Object.entries(receipts).map(([userId, ts]) => ({ userId, at: ts })) });
+  }
+  const stored = memoryStore.messages.find((item) => item.id === messageId);
+  if (!stored) return res.status(404).json({ error: 'Message not found.' });
+  const receipts = stored.readReceipts || {};
+  res.json({ ok: true, receipts: Object.entries(receipts).map(([userId, ts]) => ({ userId, at: ts })) });
+});
+
+app.post('/api/chat/:messageId/read', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const messageId = String(req.params.messageId || '');
+  if (!userId || !messageId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  const now = new Date().toISOString();
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('messages').select('from_id, to_id, chat_id, read_receipts').eq('id', messageId).maybeSingle();
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: 'Message not found.' });
+    const receipts = { ...(data.read_receipts || {}) };
+    receipts[String(userId)] = now;
+    await supabase.from('messages').update({ read_receipts: receipts }).eq('id', messageId);
+    return res.json({ ok: true, receipts });
+  }
+  let stored;
+  if (firebaseEnabled && firebaseDb) {
+    const doc = await firebaseDb.collection('messages').doc(messageId).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Message not found.' });
+    stored = { id: doc.id, ...doc.data() };
+    const receipts = { ...(stored.readReceipts || {}) };
+    receipts[String(userId)] = now;
+    await firebaseDb.collection('messages').doc(messageId).update({ readReceipts: receipts });
+    invalidateFirestoreCache();
+    return res.json({ ok: true, receipts });
+  }
+  stored = memoryStore.messages.find((item) => item.id === messageId);
+  if (!stored) return res.status(404).json({ error: 'Message not found.' });
+  if (!stored.readReceipts) stored.readReceipts = {};
+  stored.readReceipts[String(userId)] = now;
+  persistStore();
+  res.json({ ok: true, receipts: stored.readReceipts });
+});
+
+app.post('/api/users/:userId/block', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const targetId = String(req.params.userId || '');
+  if (!userId || !targetId || userId === targetId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  if (supabaseEnabled) {
+    const { error } = await supabase.from('user_blocks').upsert({
+      blocker_id: userId, blocked_id: targetId, created_at: new Date().toISOString(),
+    }, { onConflict: 'blocker_id,blocked_id' });
+    if (error) throw error;
+  } else if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('userBlocks').doc(`${userId}::${targetId}`).set({
+      blockerId: userId, blockedId: targetId, createdAt: new Date().toISOString(),
+    });
+    invalidateFirestoreCache();
+  } else {
+    if (!memoryStore.userBlocks.some((b) => String(b.blockerId) === userId && String(b.blockedId) === targetId)) {
+      memoryStore.userBlocks.push({ blockerId: userId, blockedId: targetId, createdAt: new Date().toISOString() });
+      persistStore();
+    }
+  }
+  res.json({ ok: true, blocked: true });
+});
+
+app.delete('/api/users/:userId/block', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const targetId = String(req.params.userId || '');
+  if (!userId || !targetId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  if (supabaseEnabled) {
+    await supabase.from('user_blocks').delete().eq('blocker_id', userId).eq('blocked_id', targetId);
+  } else if (firebaseEnabled && firebaseDb) {
+    await firebaseDb.collection('userBlocks').doc(`${userId}::${targetId}`).delete();
+    invalidateFirestoreCache();
+  } else {
+    memoryStore.userBlocks = memoryStore.userBlocks.filter(
+      (b) => !(String(b.blockerId) === userId && String(b.blockedId) === targetId)
+    );
+    persistStore();
+  }
+  res.json({ ok: true, blocked: false });
+});
+
+app.get('/api/users/blocked', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  await storeReady;
+
+  let blocks = [];
+  if (supabaseEnabled) {
+    const { data, error } = await supabase.from('user_blocks').select('blocked_id').eq('blocker_id', userId);
+    if (error) throw error;
+    blocks = (data || []).map((b) => String(b.blocked_id));
+  } else if (firebaseEnabled && firebaseDb) {
+    const snap = await firebaseDb.collection('userBlocks').where('blockerId', '==', userId).get();
+    blocks = snap.docs.map((doc) => String(doc.data().blockedId));
+  } else {
+    blocks = memoryStore.userBlocks.filter((b) => String(b.blockerId) === userId).map((b) => String(b.blockedId));
+  }
+
+  const users = [];
+  if (blocks.length) {
+    if (supabaseEnabled) {
+      const { data, error } = await supabase.from('users').select('id, label, avatar_data, about').in('id', blocks);
+      if (error) throw error;
+      (data || []).forEach((u) => users.push(sanitizeUser(u)));
+    } else {
+      const allUsers = firebaseEnabled && firebaseDb ? await getFirestoreUsers() : memoryStore.users;
+      blocks.forEach((id) => {
+        const u = allUsers.find((user) => String(user.id) === id);
+        if (u) users.push(sanitizeUser(u));
+      });
+    }
+  }
+  res.json({ users });
+});
+
+app.get('/api/search', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const q = String(req.query.q || '').trim().toLowerCase();
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  if (!q) return res.json({ users: [], messages: [] });
+  await storeReady;
+
+  let allUsers, allMessages;
+  if (supabaseEnabled) {
+    const { data: users, error: usersError } = await supabase.from('users').select('id, label, avatar_data, about');
+    if (usersError) throw usersError;
+    allUsers = (users || []).filter((u) => String(u.id) !== userId);
+    const { data: messages, error: messagesError } = await supabase.from('messages')
+      .select('id, from_id, to_id, chat_id, text, type, sticker_id, created_at')
+      .or(`from_id.eq.${userId},to_id.eq.${userId}`);
+    if (messagesError) throw messagesError;
+    allMessages = (messages || []).map(toAppMessage);
+  } else {
+    allUsers = (firebaseEnabled && firebaseDb ? await getFirestoreUsers() : memoryStore.users)
+      .filter((u) => String(u.id) !== userId);
+    allMessages = (firebaseEnabled && firebaseDb ? await getFirestoreMessages() : memoryStore.messages)
+      .map((m) => (m.chatId ? toAppMessage(m) : m));
+  }
+
+  const blockedByMe = getBlockedByUser(userId);
+  const foundUsers = allUsers.filter((u) =>
+    !blockedByMe.has(String(u.id)) &&
+    (String(u.label || '').toLowerCase().includes(q) || String(u.id).toLowerCase().includes(q))
+  ).map(sanitizeUser);
+
+  const foundMessages = allMessages.filter((message) => {
+    if (blockedByMe.has(String(message.fromId))) return false;
+    const haystack = (message.text || '').toLowerCase();
+    return haystack.includes(q);
+  }).slice(0, 50);
+
+  res.json({ users: foundUsers, messages: foundMessages });
+});
+
+app.post('/api/chats/:chatId/pin', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const chatId = String(req.params.chatId || '');
+  if (!userId || !chatId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  if (supabaseEnabled) {
+    const membership = (await supabase.from('chat_members').select('role').eq('chat_id', chatId).eq('user_id', userId).maybeSingle()).data;
+    if (!membership) return res.status(403).json({ error: 'You are not a member of this group.' });
+    const chat = (await supabase.from('chats').select('pinned_at').eq('id', chatId).maybeSingle()).data;
+    const pinned = !chat.pinned_at;
+    await supabase.from('chats').update({ pinned_at: pinned ? new Date().toISOString() : null }).eq('id', chatId);
+    return res.json({ ok: true, pinned });
+  }
+
+  const chat = memoryStore.chats.find((c) => String(c.id) === chatId);
+  if (!chat) return res.status(404).json({ error: 'Chat not found.' });
+  const membership = memoryStore.chatMembers.find((m) => String(m.chatId) === chatId && String(m.userId) === userId);
+  if (!membership) return res.status(403).json({ error: 'You are not a member of this group.' });
+  const pinned = chat.pinnedAt === null;
+  chat.pinnedAt = pinned ? new Date().toISOString() : null;
+  persistStore();
+  res.json({ ok: true, pinned });
+});
+
+app.get('/api/export/:chatId', async (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const chatId = String(req.params.chatId || '');
+  if (!userId || !chatId) return res.status(400).json({ error: 'Invalid request.' });
+  await storeReady;
+
+  let messages = [];
+  if (chatId.startsWith('direct::')) {
+    const partnerId = chatId.slice('direct::'.length);
+    if (req.cookies?.sessionUserId !== userId) return res.status(403).json({ error: 'Access denied.' });
+    if (supabaseEnabled) {
+      const [{ data: sent }, { data: received }] = await Promise.all([
+        supabase.from('messages').select('*').eq('from_id', userId).eq('to_id', partnerId).is('chat_id', null),
+        supabase.from('messages').select('*').eq('from_id', partnerId).eq('to_id', userId).is('chat_id', null),
+      ]);
+      messages = [...(sent || []), ...(received || [])].map(toAppMessage);
+    } else {
+      messages = memoryStore.messages.filter((m) =>
+        !m.chatId &&
+        ((m.fromId === userId && m.toId === partnerId) || (m.fromId === partnerId && m.toId === userId))
+      );
+    }
+  } else {
+    if (supabaseEnabled) {
+      const { data, error } = await supabase.from('messages').select('*').eq('chat_id', chatId);
+      if (error) throw error;
+      messages = (data || []).map(toAppMessage);
+    } else {
+      messages = memoryStore.messages.filter((m) => String(m.chatId) === chatId);
+    }
+  }
+  messages.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+  const lines = messages.map((m) => {
+    const time = formatTime(m.createdAt);
+    const from = m.fromId === userId ? 'Вы' : (m.fromId || '');
+    const body = m.type === 'image' ? '[Фото]' : m.type === 'sticker' ? '[Стикер]' : m.type === 'audio' ? '[Голосовое]' : m.type === 'call' ? '[Звонок]' : m.text;
+    return `${time} ${from}: ${body}`;
+  });
+
+  res.set('Content-Type', 'text/plain; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="export-${chatId}.txt"`);
+  res.send(lines.join('\n'));
+});
+
+function formatTime(isoStr) {
+  if (!isoStr) return '';
+  try {
+    return new Date(isoStr).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  } catch (e) { return ''; }
+}
 
 app.listen(PORT, () => {
   console.log(`Messenger running on http://localhost:${PORT}`);
