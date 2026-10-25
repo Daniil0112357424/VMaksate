@@ -1704,7 +1704,7 @@ app.post('/api/chat/reactions', async (req, res) => {
   await storeReady;
   let message = null;
   if (supabaseEnabled) {
-    const { data, error } = await supabase.from('messages').select('id, from_id, to_id, reactions').eq('id', String(messageId)).maybeSingle();
+    const { data, error } = await supabase.from('messages').select('id, from_id, to_id, chat_id, reactions').eq('id', String(messageId)).maybeSingle();
     if (error) throw error;
     message = data;
   } else if (firebaseEnabled && firebaseDb) {
@@ -1712,8 +1712,24 @@ app.post('/api/chat/reactions', async (req, res) => {
     message = doc.exists ? { id: doc.id, ...doc.data() } : null;
   } else message = memoryStore.messages.find((item) => item.id === String(messageId));
   if (!message) return res.status(404).json({ error: 'Message not found.' });
-  if (message.from_id !== String(userId) && message.to_id !== String(userId)
-      && message.fromId !== String(userId) && message.toId !== String(userId)) {
+  const messageChatId = String(message.chat_id || message.chatId || '');
+  let hasAccess = message.from_id === String(userId) || message.to_id === String(userId)
+    || message.fromId === String(userId) || message.toId === String(userId);
+  if (messageChatId) {
+    if (supabaseEnabled) {
+      const { data: membership, error: membershipError } = await supabase.from('chat_members')
+        .select('user_id').eq('chat_id', messageChatId).eq('user_id', String(userId)).maybeSingle();
+      if (membershipError) throw membershipError;
+      hasAccess = Boolean(membership);
+    } else if (firebaseEnabled && firebaseDb) {
+      const membership = await firebaseDb.collection('chat_members')
+        .where('chat_id', '==', messageChatId).where('user_id', '==', String(userId)).limit(1).get();
+      hasAccess = !membership.empty;
+    } else {
+      hasAccess = getChatMemberIds(messageChatId).includes(String(userId));
+    }
+  }
+  if (!hasAccess) {
     return res.status(403).json({ error: 'Chat access denied.' });
   }
 
@@ -1731,7 +1747,24 @@ app.post('/api/chat/reactions', async (req, res) => {
     message.reactions = reactions;
     persistStore();
   }
-  publishConversationUpdate(message.from_id || message.fromId, message.to_id || message.toId);
+  if (messageChatId) {
+    let memberIds;
+    if (supabaseEnabled) {
+      const { data, error } = await supabase.from('chat_members').select('user_id').eq('chat_id', messageChatId);
+      if (error) throw error;
+      memberIds = (data || []).map((member) => String(member.user_id));
+    } else if (firebaseEnabled && firebaseDb) {
+      const snapshot = await firebaseDb.collection('chat_members').where('chat_id', '==', messageChatId).get();
+      memberIds = snapshot.docs.map((doc) => String(doc.data().user_id));
+    } else {
+      memberIds = getChatMemberIds(messageChatId);
+    }
+    memberIds.forEach((memberId) => publishUserEvent(memberId, 'chat-message', {
+      fromId: String(userId), toId: messageChatId, chatId: messageChatId,
+    }));
+  } else {
+    publishConversationUpdate(message.from_id || message.fromId, message.to_id || message.toId);
+  }
   res.json({ ok: true, reactions });
 });
 
