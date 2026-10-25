@@ -185,7 +185,7 @@ function initSupabase() {
 initFirebase();
 initSupabase();
 
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '28mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -716,7 +716,7 @@ const MAX_AUDIO_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024;
 
 function validFileData(value) {
-  if (typeof value !== 'string' || !/^data:[^/]+\/[^;,]+;base64,[a-z0-9+/=]+$/i.test(value)) {
+  if (typeof value !== 'string' || !/^data:[^/]+\/[^;,]+;base64,[a-z0-9+/=]*$/i.test(value)) {
     return false;
   }
   const base64Data = value.slice(value.indexOf(',') + 1);
@@ -1289,7 +1289,7 @@ app.get('/api/chat', async (req, res) => {
 
     if (supabaseEnabled) {
       const { data, error } = await supabase.from('messages')
-        .select('id, from_id, to_id, text, image_data, audio_data, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, chat_id, read_receipts, pinned_at, pinned_by, reactions, delivered_at, read_at, edited_at, created_at')
+        .select('id, from_id, to_id, text, image_data, audio_data, file_data, file_name, file_type, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, chat_id, read_receipts, pinned_at, pinned_by, reactions, delivered_at, read_at, edited_at, created_at')
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true });
       if (error) throw error;
@@ -1327,8 +1327,8 @@ app.get('/api/chat', async (req, res) => {
 
   if (supabaseEnabled) {
     const [{ data: sent, error: sentError }, { data: received, error: receivedError }] = await Promise.all([
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, audio_data, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', me).eq('to_id', other),
-      supabase.from('messages').select('id, from_id, to_id, text, image_data, audio_data, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', other).eq('to_id', me),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, audio_data, file_data, file_name, file_type, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', me).eq('to_id', other),
+      supabase.from('messages').select('id, from_id, to_id, text, image_data, audio_data, file_data, file_name, file_type, duration_ms, reply_to, type, call_id, call_mode, call_status, sticker_id, reactions, delivered_at, read_at, edited_at, created_at').eq('from_id', other).eq('to_id', me),
     ]);
     if (sentError || receivedError) throw sentError || receivedError;
     const incoming = received || [];
