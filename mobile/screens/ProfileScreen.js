@@ -18,4 +18,3 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: 'bold', marginBottom: 8 },
   sub: { color: '#666', marginBottom: 24 },
 });
-}
