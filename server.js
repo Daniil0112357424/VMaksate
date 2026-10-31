@@ -187,6 +187,51 @@ initSupabase();
 
 app.use(express.json({ limit: '28mb' }));
 app.use(cookieParser());
+
+// Allow mobile clients (and any non-browser client) to authenticate via a
+// signed Bearer token instead of the session cookie. The token is issued by
+// /api/auth/login and /api/auth/register and verified here.
+const SESSION_TOKEN_SECRET = String(process.env.SESSION_TOKEN_SECRET || process.env.ADMIN_SESSION_SECRET || '');
+const SESSION_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function issueSessionToken(userId) {
+  if (!SESSION_TOKEN_SECRET) return null;
+  const payload = `${String(userId)}.${Date.now()}`;
+  const signature = createHmac('sha256', SESSION_TOKEN_SECRET).update(payload).digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function verifySessionToken(token) {
+  if (!SESSION_TOKEN_SECRET || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const issuedAt = Number(parts[1]);
+  if (!Number.isSafeInteger(issuedAt) || issuedAt > Date.now() || Date.now() - issuedAt > SESSION_TOKEN_TTL_MS) {
+    return null;
+  }
+  const payload = `${parts[0]}.${parts[1]}`;
+  const expected = createHmac('sha256', SESSION_TOKEN_SECRET).update(payload).digest();
+  let provided;
+  try { provided = Buffer.from(parts[2], 'base64url'); } catch (e) { return null; }
+  if (provided.length !== expected.length) return null;
+  if (!timingSafeEqual(provided, expected)) return null;
+  return parts[0];
+}
+
+app.use((req, res, next) => {
+  if (!req.cookies?.sessionUserId) {
+    const authHeader = String(req.headers?.authorization || '');
+    if (authHeader.toLowerCase().startsWith('bearer ')) {
+      const userId = verifySessionToken(authHeader.slice(7).trim());
+      if (userId) {
+        req.cookies = req.cookies || {};
+        req.cookies.sessionUserId = userId;
+      }
+    }
+  }
+  next();
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 function asyncHandler(handler) {
@@ -929,7 +974,7 @@ app.post('/api/auth/register', async (req, res) => {
     path: '/',
   });
 
-  res.json({ ok: true, user: sanitizeUser({ id: String(id), label: String(label) }) });
+  res.json({ ok: true, user: sanitizeUser({ id: String(id), label: String(label) }), token: issueSessionToken(String(id)) });
 });
 
 app.post('/api/auth/login', async (req, res) => {
@@ -966,7 +1011,7 @@ app.post('/api/auth/login', async (req, res) => {
     path: '/',
   });
 
-  res.json({ ok: true, user: sanitizeUser(user) });
+  res.json({ ok: true, user: sanitizeUser(user), token: issueSessionToken(String(id)) });
 });
 
 app.get('/api/auth/me', async (req, res) => {
