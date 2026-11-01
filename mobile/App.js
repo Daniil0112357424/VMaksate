@@ -31,4 +31,3 @@ function Root() {
 
   return <ChatListScreen onOpenChat={(other, label) => setChatParams({ other, label })} />;
 }
-}
