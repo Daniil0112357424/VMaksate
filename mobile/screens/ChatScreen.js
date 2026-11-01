@@ -89,4 +89,3 @@ const styles = StyleSheet.create({
   sendBtn: { marginLeft: 8, justifyContent: 'center', paddingHorizontal: 12 },
   sendText: { fontSize: 22, color: '#007aff' },
 });
-}

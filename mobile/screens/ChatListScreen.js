@@ -55,4 +55,3 @@ const styles = StyleSheet.create({
   preview: { color: '#666', marginTop: 4 },
   empty: { textAlign: 'center', marginTop: 32, color: '#999' },
 });
-}

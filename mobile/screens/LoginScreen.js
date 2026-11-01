@@ -36,4 +36,3 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 12, marginBottom: 12 },
   link: { color: 'blue', marginTop: 16, textAlign: 'center' },
 });
-}
