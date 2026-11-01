@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { useAuth } from '../AuthContext';
 
-export default function RegisterScreen({ navigation }) {
+export default function RegisterScreen({ onBack }) {
   const { register } = useAuth();
   const [id, setId] = useState('');
   const [label, setLabel] = useState('');
@@ -27,7 +27,7 @@ export default function RegisterScreen({ navigation }) {
       <TextInput style={styles.input} placeholder="Имя" value={label} onChangeText={setLabel} />
       <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={setPassword} secureTextEntry />
       <Button title={busy ? 'Создаём...' : 'Зарегистрироваться'} onPress={submit} disabled={busy} />
-      <Text style={styles.link} onPress={() => navigation.navigate('Login')}>Уже есть аккаунт? Войти</Text>
+      <Text style={styles.link} onPress={onBack}>Уже есть аккаунт? Войти</Text>
     </View>
   );
 }

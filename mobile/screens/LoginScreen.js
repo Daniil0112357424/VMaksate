@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { useAuth } from '../AuthContext';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ onRegister }) {
   const { login } = useAuth();
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +25,7 @@ export default function LoginScreen({ navigation }) {
       <TextInput style={styles.input} placeholder="User ID" value={id} onChangeText={setId} autoCapitalize="none" />
       <TextInput style={styles.input} placeholder="Пароль" value={password} onChangeText={setPassword} secureTextEntry />
       <Button title={busy ? 'Входим...' : 'Войти'} onPress={submit} disabled={busy} />
-      <Text style={styles.link} onPress={() => navigation.navigate('Register')}>Нет аккаунта? Регистрация</Text>
+      <Text style={styles.link} onPress={onRegister}>Нет аккаунта? Регистрация</Text>
     </View>
   );
 }

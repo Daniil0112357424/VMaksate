@@ -3,7 +3,7 @@ import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, Keyboard
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
 
-export default function ChatScreen({ route }) {
+export default function ChatScreen({ route, onBack }) {
   const { user } = useAuth();
   const { other, label } = route.params;
   const [messages, setMessages] = useState([]);
@@ -56,6 +56,7 @@ export default function ChatScreen({ route }) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={onBack}><Text style={{ color: '#007aff', marginRight: 12 }}>←</Text></TouchableOpacity>
         <Text style={styles.title}>{label || other}</Text>
       </View>
       <FlatList

@@ -3,7 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } fr
 import { useAuth } from '../AuthContext';
 import { api } from '../api';
 
-export default function ChatListScreen({ navigation }) {
+export default function ChatListScreen({ onOpenChat }) {
   const { user, logout } = useAuth();
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -34,7 +34,7 @@ export default function ChatListScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
         renderItem={({ item }) => (
-          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('Chat', { other: item.id, label: item.label })}>
+          <TouchableOpacity style={styles.row} onPress={() => onOpenChat(item.id, item.label)}>
             <Text style={styles.name}>{item.label || item.id}</Text>
             {item.lastMessage ? <Text style={styles.preview} numberOfLines={1}>{item.lastMessage.text}</Text> : null}
           </TouchableOpacity>
