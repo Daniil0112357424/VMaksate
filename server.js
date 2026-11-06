@@ -188,11 +188,42 @@ initSupabase();
 app.use(express.json({ limit: '28mb' }));
 app.use(cookieParser());
 
+// Verify the session cookie BEFORE any route reads it. The cookie carries the
+// same HMAC-signed token issued to mobile clients; a bare user id is not
+// accepted, so a forged cookie is treated as "signed out" instead of granting
+// access to that account.
+app.use((req, res, next) => {
+  const raw = req.cookies?.sessionUserId;
+  if (raw !== undefined && raw !== '') {
+    const verified = verifySessionToken(raw);
+    if (verified) {
+      req.cookies.sessionUserId = verified;
+    } else {
+      // Forged or legacy (pre-signing) cookie: reject it and clear.
+      req.cookies.sessionUserId = undefined;
+      res.clearCookie('sessionUserId', { path: '/' });
+    }
+  }
+  next();
+});
+
 // Allow mobile clients (and any non-browser client) to authenticate via a
 // signed Bearer token instead of the session cookie. The token is issued by
 // /api/auth/login and /api/auth/register and verified here.
-const SESSION_TOKEN_SECRET = String(process.env.SESSION_TOKEN_SECRET || process.env.ADMIN_SESSION_SECRET || '');
+let SESSION_TOKEN_SECRET = String(process.env.SESSION_TOKEN_SECRET || process.env.ADMIN_SESSION_SECRET || '');
 const SESSION_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SESSION_TOKEN_MIN_SECRET_LEN = 24;
+
+if (!SESSION_TOKEN_SECRET || SESSION_TOKEN_SECRET.length < SESSION_TOKEN_MIN_SECRET_LEN) {
+  if (SESSION_TOKEN_SECRET) {
+    console.warn('SESSION_TOKEN_SECRET is too weak; using an ephemeral secret for this run.');
+  } else {
+    console.warn('SESSION_TOKEN_SECRET is not set; generated an ephemeral secret for this run. Set it in the environment to keep sessions across restarts.');
+  }
+  // Fail closed: never fall back to unsigned (forgeable) session cookies.
+  // A random per-process secret keeps sessions valid until the next restart.
+  SESSION_TOKEN_SECRET = randomBytes(32).toString('base64url');
+}
 
 function issueSessionToken(userId) {
   if (!SESSION_TOKEN_SECRET) return null;
@@ -216,6 +247,21 @@ function verifySessionToken(token) {
   if (provided.length !== expected.length) return null;
   if (!timingSafeEqual(provided, expected)) return null;
   return parts[0];
+}
+
+// Set the session cookie with a signed value, never a bare user id.
+function setSessionCookie(res, userId) {
+  const token = issueSessionToken(userId);
+  if (!token) {
+    // Unreachable: the secret is guaranteed to exist after startup checks.
+    throw new Error('Session signing is not configured.');
+  }
+  res.cookie('sessionUserId', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: SESSION_TOKEN_TTL_MS,
+  });
 }
 
 app.use((req, res, next) => {
@@ -968,11 +1014,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
     ensureUser(String(id), String(label), passwordHash);
   }
-  res.cookie('sessionUserId', String(id), {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  setSessionCookie(res, String(id));
 
   res.json({ ok: true, user: sanitizeUser({ id: String(id), label: String(label) }), token: issueSessionToken(String(id)) });
 });
@@ -1005,11 +1047,7 @@ app.post('/api/auth/login', async (req, res) => {
     }
   }
 
-  res.cookie('sessionUserId', String(id), {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-  });
+  setSessionCookie(res, String(id));
 
   res.json({ ok: true, user: sanitizeUser(user), token: issueSessionToken(String(id)) });
 });
