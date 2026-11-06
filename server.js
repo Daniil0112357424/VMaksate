@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { randomUUID, randomBytes, createHmac, timingSafeEqual } = require('crypto');
 const cookieParser = require('cookie-parser');
+const webpush = require('web-push');
 const admin = require('firebase-admin');
 const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
@@ -124,6 +125,12 @@ function publishChatMessage(message) {
   };
   publishUserEvent(fromId, 'chat-message', payload);
   publishUserEvent(toId, 'chat-message', payload);
+  // Push only when the recipient has no live SSE connection (browser closed).
+  notifyRecipientsByPush(toId, fromId, {
+    body: pushMessagePreview({ ...message, text: payload.text }),
+    url: message.chatId ? '/chat.html' : `/chat.html?open=${encodeURIComponent(String(fromId))}`,
+    tag: message.chatId ? `push-msg-${String(message.chatId)}` : `push-msg-${String(fromId)}`,
+  }).catch(() => {});
 }
 
 function publishConversationUpdate(fromId, toId) {
@@ -131,6 +138,150 @@ function publishConversationUpdate(fromId, toId) {
   publishUserEvent(payload.fromId, 'chat-message', payload);
   publishUserEvent(payload.toId, 'chat-message', payload);
 }
+
+// --- Web Push: OS notifications even when the browser is closed -------------
+const VAPID_PUBLIC_KEY = String(process.env.VAPID_PUBLIC_KEY || '');
+const VAPID_PRIVATE_KEY = String(process.env.VAPID_PRIVATE_KEY || '');
+const VAPID_SUBJECT = String(process.env.VAPID_SUBJECT || 'mailto:support@vmaksate.app');
+const pushSubscriptionsFile = path.join(dataDir, 'push-subscriptions.json');
+// userId -> Array<{ endpoint, keys: { p256dh, auth } }>
+const pushSubscriptions = new Map();
+let pushEnabled = false;
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    pushEnabled = true;
+  } catch (error) {
+    console.warn('Web Push disabled: invalid VAPID keys:', error.message);
+  }
+} else {
+  console.warn('Web Push disabled: set VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY environment variables.');
+}
+
+function loadPushSubscriptions() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(pushSubscriptionsFile, 'utf8'));
+    for (const [userId, list] of Object.entries(parsed)) {
+      if (!Array.isArray(list)) continue;
+      pushSubscriptions.set(String(userId), list.filter(isPushSubscription));
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') console.warn('Unable to load push subscriptions:', error.message);
+  }
+}
+
+function savePushSubscriptions() {
+  const data = {};
+  pushSubscriptions.forEach((list, userId) => {
+    if (list.length) data[userId] = list;
+  });
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(pushSubscriptionsFile, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.warn('Unable to save push subscriptions:', error.message);
+  }
+}
+
+function isPushSubscription(value) {
+  return value && typeof value.endpoint === 'string' && value.keys
+    && typeof value.keys.p256dh === 'string' && typeof value.keys.auth === 'string';
+}
+
+function isUserOnline(userId) {
+  const clients = userEventClients.get(String(userId));
+  return Boolean(clients && clients.size > 0);
+}
+
+function registerPushSubscription(userId, subscription) {
+  const id = String(userId);
+  const list = pushSubscriptions.get(id) || [];
+  const insert = {
+    endpoint: String(subscription.endpoint),
+    keys: {
+      p256dh: String(subscription.keys.p256dh),
+      auth: String(subscription.keys.auth),
+    },
+  };
+  const existing = list.findIndex((item) => item.endpoint === insert.endpoint);
+  if (existing >= 0) list[existing] = insert; else list.push(insert);
+  pushSubscriptions.set(id, list);
+  savePushSubscriptions();
+}
+
+function removePushSubscription(userId, endpoint) {
+  const list = pushSubscriptions.get(String(userId)) || [];
+  const next = list.filter((item) => item.endpoint !== endpoint);
+  if (next.length) pushSubscriptions.set(String(userId), next);
+  else pushSubscriptions.delete(String(userId));
+  savePushSubscriptions();
+}
+
+// Fire-and-forget push delivery with automatic pruning of dead subscriptions.
+function sendUserPush(userId, notification) {
+  if (!pushEnabled) return Promise.resolve();
+  const id = String(userId);
+  const list = [...(pushSubscriptions.get(id) || [])];
+  const payload = JSON.stringify({
+    title: notification.title,
+    body: notification.body || '',
+    url: notification.url || '/chat.html',
+    tag: notification.tag || undefined,
+    requireInteraction: notification.requireInteraction || undefined,
+  });
+  return Promise.all(list.map(async (subscription) => {
+    try {
+      await webpush.sendNotification(subscription, payload);
+    } catch (error) {
+      if (error && (error.statusCode === 404 || error.statusCode === 410)) {
+        removePushSubscription(id, subscription.endpoint);
+      } else {
+        console.warn('Push delivery failed:', (error && (error.statusCode || error.message)) || error);
+      }
+    }
+  }));
+}
+
+// The recipient gets at most one push per sender so a burst of messages does
+// not spam the notification center (tag-based replacement happens client-side).
+async function notifyRecipientsByPush(recipientId, senderId, notification, { titleFromLabel = true } = {}) {
+  if (!pushEnabled || isUserOnline(String(recipientId))) return;
+  try {
+    const label = await getUserLabel(String(senderId));
+    const finalNotification = titleFromLabel
+      ? { ...notification, title: label || notification.title, body: notification.body || 'Новое сообщение' }
+      : { ...notification, body: label || '' };
+    await sendUserPush(recipientId, finalNotification);
+  } catch (error) {
+    console.warn('Push notification failed:', error.message);
+  }
+}
+
+async function getUserLabel(userId) {
+  const id = String(userId);
+  if (supabaseEnabled) {
+    const { data } = await supabase.from('users').select('label').eq('id', id).maybeSingle();
+    return String(data?.label || id);
+  }
+  if (firebaseEnabled && firebaseDb) {
+    const doc = await firebaseDb.collection('users').doc(id).get();
+    return String((doc.exists && doc.data()?.label) || id);
+  }
+  const user = memoryStore.users.find((entry) => entry.id === id);
+  return String(user?.label || id);
+}
+
+function pushMessagePreview(message) {
+  if (message.text) return String(message.text).slice(0, 140);
+  if (message.type === 'image') return '[Фото]';
+  if (message.type === 'sticker') return '[Стикер]';
+  if (message.type === 'file') return '[Файл]';
+  if (message.type === 'audio') return '[Голосовое]';
+  return 'Новое сообщение';
+}
+
+loadPushSubscriptions();
 
 function initFirebase() {
   try {
@@ -1118,6 +1269,36 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+// --- Web Push subscription management ---------------------------------------
+app.get('/api/push/key', (req, res) => {
+  if (!pushEnabled) return res.status(503).json({ error: 'Push notifications are not configured on this server.' });
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/push/subscribe', (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const subscription = req.body?.subscription || req.body || null;
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  if (!pushEnabled) return res.status(503).json({ error: 'Push notifications are not configured on this server.' });
+  if (!isPushSubscription(subscription)) {
+    return res.status(400).json({ error: 'Invalid push subscription.' });
+  }
+  registerPushSubscription(userId, subscription);
+  res.json({ ok: true });
+});
+
+app.post('/api/push/unsubscribe', (req, res) => {
+  const userId = req.cookies?.sessionUserId;
+  const endpoint = String(req.body?.endpoint || '');
+  if (!userId) return res.status(401).json({ error: 'Sign in required.' });
+  // Removing is idempotent: a stale endpoint belongs only to browsers that
+  // have already gone away. Also look at other owners to avoid orphans.
+  if (endpoint) {
+    removePushSubscription(userId, endpoint);
+  }
+  res.json({ ok: true });
+});
+
 app.post('/api/auth/password', async (req, res) => {
   const userId = req.cookies?.sessionUserId;
   const { currentPassword = '', newPassword = '' } = req.body || {};
@@ -1956,6 +2137,16 @@ app.post('/api/calls/signal', async (req, res) => {
   }
 
   publishUserEvent(signal.toId, 'call-signal', signal);
+  if (signal.type === 'offer') {
+    // Ring the OS notification if the callee's browser is fully closed.
+    notifyRecipientsByPush(signal.toId, signal.fromId, {
+      title: 'Входящий звонок',
+      body: '',
+      url: '/chat.html',
+      tag: `push-call-${String(signal.callId)}`,
+      requireInteraction: true,
+    }, { titleFromLabel: false }).catch(() => {});
+  }
   res.json({ ok: true });
 });
 

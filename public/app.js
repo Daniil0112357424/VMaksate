@@ -580,6 +580,48 @@ function openChatWithUser(userId) {
 
 const notifyBtn = document.getElementById('notifyBtn');
 
+// --- Web Push (works with the browser tab closed) ----------------------------
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64);
+  const output = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+  return output;
+}
+
+let pushSubscriptionAttempted = false;
+
+async function subscribePush() {
+  if (pushSubscriptionAttempted) return;
+  pushSubscriptionAttempted = true;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  if (!notificationsEnabled()) return;
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    const ready = await navigator.serviceWorker.ready;
+    const keyResponse = await fetch('/api/push/key');
+    if (!keyResponse.ok) return;
+    const { publicKey } = await keyResponse.json();
+    if (!publicKey) return;
+    let subscription = await ready.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await ready.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+    const response = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: subscription.toJSON() }),
+    });
+    if (!response.ok) console.warn('Push subscribe rejected:', await response.text());
+  } catch (error) {
+    console.warn('Push subscription failed:', error.message);
+  }
+}
+
 function updateNotifyButton() {
   if (!notifyBtn) return;
   const pref = localStorage.getItem(NOTIFY_STATE_KEY);
@@ -611,6 +653,8 @@ if (notifyBtn) {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       localStorage.setItem(NOTIFY_STATE_KEY, 'on');
+      pushSubscriptionAttempted = false;
+      subscribePush();
     } else {
       localStorage.setItem(NOTIFY_STATE_KEY, 'off');
     }
@@ -2424,7 +2468,18 @@ async function bootChatPage() {
   updateChatHeader(null);
   startRealtimeEvents();
   loadMessages();
-  loadChats();
+  await loadChats();
+
+  // Register the Web Push subscription whenever the user grants notifications;
+  // re-posting is idempotent and renews subscriptions after server restarts.
+  subscribePush();
+
+  // Deep link from a notification click: /chat.html?open=<userId>
+  const openTarget = new URLSearchParams(window.location.search).get('open');
+  if (openTarget) {
+    openChatWithUser(openTarget);
+    history.replaceState(null, '', '/chat.html');
+  }
 }
 
 if (mobileBackBtn) {
