@@ -94,6 +94,13 @@ const translations = {
     callMediaError: 'Не удалось получить доступ к микрофону или камере.', callUnsupported: 'Звонки не поддерживаются этим браузером.',
     profileBtn: 'Профиль', profileTitle: 'Профиль', profileNameLabel: 'Имя', profileUserIdLabel: 'User ID', saveProfileBtn: 'Сохранить', attachPhotoTitle: 'Прикрепить фото',
     errImageTooLarge: 'Фото должно быть не больше 5 МБ.',
+    notifyToggle: 'Системные уведомления',
+    notifyOn: 'Системные уведомления включены',
+    notifyOff: 'Включить системные уведомления',
+    notifyUnsupported: 'Ваш браузер не поддерживает системные уведомления.',
+    notifyDenied: 'Браузер запретил уведомления. Разрешите их в настройках сайта.',
+    notifNewMessage: 'Новое сообщение от {sender}',
+    notifIncomingCall: 'Входящий звонок от {sender}',
     callAudio: 'Аудиозвонок', callVideo: 'Видеозвонок', callMissed: 'Пропущенный {mode}', callCompleted: '{mode}', callDeclinedLog: 'Отклонённый {mode}',
     messageSent: 'Отправлено', messageDelivered: 'Доставлено', messageRead: 'Прочитано',
     deleteMessage: 'Удалить', confirmDeleteMessage: 'Удалить это сообщение? Это действие нельзя отменить.',
@@ -215,6 +222,13 @@ const translations = {
     callMediaError: 'Unable to access the microphone or camera.', callUnsupported: 'Calls are not supported by this browser.',
     profileBtn: 'Profile', profileTitle: 'Profile', profileNameLabel: 'Name', profileUserIdLabel: 'User ID', saveProfileBtn: 'Save', attachPhotoTitle: 'Attach photo',
     errImageTooLarge: 'Image must be 5 MB or smaller.',
+    notifyToggle: 'Browser notifications',
+    notifyOn: 'Browser notifications are on',
+    notifyOff: 'Enable browser notifications',
+    notifyUnsupported: 'Your browser does not support browser notifications.',
+    notifyDenied: 'The browser blocked notifications. Allow them in site settings.',
+    notifNewMessage: 'New message from {sender}',
+    notifIncomingCall: 'Incoming call from {sender}',
     callAudio: 'Audio call', callVideo: 'Video call', callMissed: 'Missed {mode}', callCompleted: '{mode}', callDeclinedLog: 'Declined {mode}',
     messageSent: 'Sent', messageDelivered: 'Delivered', messageRead: 'Read',
     deleteMessage: 'Delete', confirmDeleteMessage: 'Delete this message? This cannot be undone.',
@@ -336,6 +350,13 @@ const translations = {
     callMediaError: 'No se pudo acceder al micrófono o la cámara.', callUnsupported: 'Este navegador no admite llamadas.',
     profileBtn: 'Perfil', profileTitle: 'Perfil', profileNameLabel: 'Nombre', profileUserIdLabel: 'ID de usuario', saveProfileBtn: 'Guardar', attachPhotoTitle: 'Adjuntar foto',
     errImageTooLarge: 'La imagen debe tener 5 MB o menos.',
+    notifyToggle: 'Notificaciones del navegador',
+    notifyOn: 'Las notificaciones del navegador están activadas',
+    notifyOff: 'Activar notificaciones del navegador',
+    notifyUnsupported: 'Tu navegador no admite notificaciones.',
+    notifyDenied: 'El navegador bloqueó las notificaciones. Permítelas en la configuración del sitio.',
+    notifNewMessage: 'Nuevo mensaje de {sender}',
+    notifIncomingCall: 'Llamada entrante de {sender}',
     callAudio: 'Llamada de audio', callVideo: 'Videollamada', callMissed: 'Llamada perdida: {mode}', callCompleted: '{mode}', callDeclinedLog: '{mode} rechazada',
     messageSent: 'Enviado', messageDelivered: 'Entregado', messageRead: 'Leído',
     deleteMessage: 'Eliminar', confirmDeleteMessage: '¿Eliminar este mensaje? Esta acción no se puede deshacer.',
@@ -445,6 +466,158 @@ function formatTime(isoStr) {
 let currentUser = null;
 let selectedPartner = null;
 let currentUserList = [];
+
+// --- Browser notifications -------------------------------------------------
+const NOTIFY_STATE_KEY = 'notify_enabled'; // remembered user choice: 'on' | 'off'
+
+function notificationsSupported() {
+  return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+function notificationsEnabled() {
+  return notificationsSupported()
+    && localStorage.getItem(NOTIFY_STATE_KEY) !== 'off'
+    && Notification.permission === 'granted';
+}
+
+// Labels are best-effort: contacts known to the client render by name.
+function contactLabel(userId) {
+  if (selectedPartner && String(selectedPartner.id) === String(userId) && selectedPartner.label) {
+    return selectedPartner.label;
+  }
+  const known = currentUserList.find((user) => String(user.id) === String(userId));
+  return known?.label || contactLabelFromDom(userId) || String(userId);
+}
+
+function contactLabelFromDom(userId) {
+  const item = userList?.querySelector(`[data-user-id="${CSS.escape(String(userId))}"]`);
+  const name = item?.querySelector('.user-item-name');
+  return name?.textContent || null;
+}
+
+function showPageNotification(title, body, { tag, renotify = false, onClick = null } = {}) {
+  if (!notificationsEnabled()) return;
+  // When the tab is visible and focused, in-app UI already shows updates.
+  if (!document.hidden && document.hasFocus()) return;
+  try {
+    const notification = new Notification(title, {
+      body,
+      icon: '/favicon.ico',
+      badge: '/favicon.ico',
+      tag: tag || undefined,
+      renotify: renotify && tag ? true : undefined,
+    });
+    notification.onclick = (event) => {
+      event.preventDefault();
+      window.focus();
+      notification.close();
+      if (onClick) onClick();
+    };
+  } catch (error) {
+    // Notification API may throw in some browsers when the page is being unloaded.
+    console.warn('Unable to show a notification:', error);
+  }
+}
+
+function messagePreviewText(message) {
+  if (message.text) return String(message.text).slice(0, 140);
+  if (message.type === 'image') return t('previewImage');
+  if (message.type === 'sticker') return t('previewSticker');
+  if (message.type === 'file') return t('fileMessage');
+  if (message.type === 'audio') return t('previewVoice');
+  return t('notifNewMessage', { sender: '' }).trim() || '';
+}
+
+function maybeNotifyIncomingMessage(message) {
+  if (!currentUser) return;
+  // publishConversationUpdate() also reuses the 'chat-message' event with no
+  // content (e.g. after edits/deletes) — nothing new to notify about.
+  if (!message.text && !message.type && !message.createdAt && !message.messageId) return;
+  const myId = String(currentUser.id);
+  const fromId = String(message.fromId || '');
+  if (fromId === myId) return;
+
+  if (message.chatId) {
+    // Group message addressed to me (the SSE feed only delivers my chats).
+    showPageNotification(
+      t('notifNewMessage', { sender: contactLabel(fromId) }),
+      messagePreviewText(message),
+      { tag: `msg-${message.chatId}` },
+    );
+    return;
+  }
+  const toId = String(message.toId || '');
+  if (toId !== myId) return; // senders receive their own echo; do not notify them
+  if (selectedPartner && String(selectedPartner.id) === fromId) return; // chat is open on screen
+  showPageNotification(
+    t('notifNewMessage', { sender: contactLabel(fromId) }),
+    messagePreviewText(message),
+    { tag: `msg-${fromId}`, onClick: () => openChatWithUser(fromId) },
+  );
+}
+
+function maybeNotifyIncomingCall(partnerId) {
+  if (!currentUser) return;
+  showPageNotification(
+    t('notifIncomingCall', { sender: contactLabel(partnerId) }),
+    t('appTitle'),
+    { tag: `call-${partnerId}`, renotify: true, onClick: () => openChatWithUser(partnerId) },
+  );
+}
+
+// Opens a direct chat by user id (used from notification clicks).
+function openChatWithUser(userId) {
+  if (!userId) return;
+  const match = currentUserList.find((user) => String(user.id) === String(userId));
+  if (!match) { loadChats().catch(() => {}); return; }
+  setReplyToMessage(null);
+  selectedPartner = match;
+  updateChatHeader(match);
+  document.querySelector('.chat-panel')?.classList.remove('no-chat');
+  userList?.querySelector(`[data-user-id="${CSS.escape(String(userId))}"]`)?.click();
+  loadMessages();
+}
+
+const notifyBtn = document.getElementById('notifyBtn');
+
+function updateNotifyButton() {
+  if (!notifyBtn) return;
+  const pref = localStorage.getItem(NOTIFY_STATE_KEY);
+  const isOff = pref === 'off' || !notificationsSupported() || Notification.permission !== 'granted';
+  notifyBtn.classList.toggle('is-off', isOff);
+  notifyBtn.classList.toggle('is-on', !isOff);
+  notifyBtn.setAttribute('aria-pressed', isOff ? 'false' : 'true');
+  notifyBtn.title = isOff ? t('notifyOff') : t('notifyOn');
+}
+
+if (notifyBtn) {
+  notifyBtn.addEventListener('click', async () => {
+    if (!notificationsSupported()) {
+      alert(t('notifyUnsupported'));
+      return;
+    }
+    const pref = localStorage.getItem(NOTIFY_STATE_KEY);
+    if (pref !== 'off' && Notification.permission === 'granted') {
+      // Currently on: just switch the preference off.
+      localStorage.setItem(NOTIFY_STATE_KEY, 'off');
+      updateNotifyButton();
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      alert(t('notifyDenied'));
+      updateNotifyButton();
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      localStorage.setItem(NOTIFY_STATE_KEY, 'on');
+    } else {
+      localStorage.setItem(NOTIFY_STATE_KEY, 'off');
+    }
+    updateNotifyButton();
+  });
+  updateNotifyButton();
+}
 const unreadUsers = new Set();
 let blockedUsersCache = [];
 
@@ -679,6 +852,8 @@ function applyLanguage(lang) {
   if (adminUserList && adminPage && adminDashboard?.classList.contains('active')) {
     loadAdminUsers();
   }
+
+  updateNotifyButton();
 }
 
 async function showAuthMessage(text, isError = false) {
@@ -781,6 +956,7 @@ function renderUsers(users) {
   users.forEach((user) => {
     const item = document.createElement('div');
     item.className = `user-item ${selectedPartner && selectedPartner.id === user.id ? 'active' : ''}`;
+    item.dataset.userId = String(user.id || '');
 
     const avatar = document.createElement('div');
     avatar.className = 'user-avatar-circle';
@@ -2128,6 +2304,9 @@ function startRealtimeEvents() {
       chatRefreshTimer = setTimeout(() => {
         const messages = pendingChatMessages;
         pendingChatMessages = [];
+        messages.forEach((message) => {
+          try { maybeNotifyIncomingMessage(message); } catch (error) { console.warn(error); }
+        });
         const hasIncomingDirectMessage = messages.some((message) =>
           !message.chatId && message.toId === currentUser.id && message.fromId !== currentUser.id
         );
@@ -2148,6 +2327,9 @@ function startRealtimeEvents() {
     try {
       const signal = JSON.parse(event.data);
       if (signal.createdAt > callSignalCursor) callSignalCursor = signal.createdAt;
+      if (signal.type === 'offer' && !callState && !(incomingCall && incomingCall.callId === signal.callId)) {
+        maybeNotifyIncomingCall(signal.fromId);
+      }
       handleCallSignal(signal).catch((error) => console.error('Unable to process call signal:', error));
     } catch (error) {
       console.error('Unable to process realtime call event:', error);

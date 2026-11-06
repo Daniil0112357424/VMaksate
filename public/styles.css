@@ -3440,6 +3440,29 @@ textarea {
   transform: rotate(-38deg);
 }
 
+/* Browser notification toggle */
+
+.notify-toggle {
+  position: relative;
+  opacity: 0.55;
+}
+
+.notify-toggle.is-on {
+  opacity: 1;
+}
+
+.notify-toggle .icon-notify-off {
+  display: none;
+}
+
+.notify-toggle.is-off .icon-notify-on {
+  display: none;
+}
+
+.notify-toggle.is-off .icon-notify-off {
+  display: block;
+}
+
 /* Password change in the profile dialog */
 
 .password-change {
