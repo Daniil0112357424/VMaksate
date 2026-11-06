@@ -230,9 +230,11 @@ function sendUserPush(userId, notification) {
     tag: notification.tag || undefined,
     requireInteraction: notification.requireInteraction || undefined,
   });
+  // Push services (FCM) reject requests without a non-negative TTL header.
+  const ttlSeconds = Math.max(1, Math.min(2419200, Number(notification.ttl) || 172800)); // 2 days by default
   return Promise.all(list.map(async (subscription) => {
     try {
-      await webpush.sendNotification(subscription, payload);
+      await webpush.sendNotification(subscription, payload, { TTL: ttlSeconds });
     } catch (error) {
       if (error && (error.statusCode === 404 || error.statusCode === 410)) {
         removePushSubscription(id, subscription.endpoint);
@@ -2145,6 +2147,8 @@ app.post('/api/calls/signal', async (req, res) => {
       url: '/chat.html',
       tag: `push-call-${String(signal.callId)}`,
       requireInteraction: true,
+      // A missed call stops being relevant quickly: short TTL.
+      ttl: 60,
     }, { titleFromLabel: false }).catch(() => {});
   }
   res.json({ ok: true });
