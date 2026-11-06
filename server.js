@@ -810,6 +810,12 @@ function validFileData(value) {
   if (typeof value !== 'string' || !/^data:[^/]+\/[^;,]+;base64,[a-z0-9+/=]*$/i.test(value)) {
     return false;
   }
+  // Block formats that can execute scripts or markup when opened from a
+  // message attachment (e.g. HTML in the context of app origin).
+  const mime = value.slice('data:'.length, value.indexOf(';')).toLowerCase();
+  if (/html|svg|xml|javascript|ecmascript/.test(mime)) {
+    return false;
+  }
   const base64Data = value.slice(value.indexOf(',') + 1);
   return Buffer.byteLength(base64Data, 'base64') <= MAX_FILE_SIZE_BYTES;
 }
@@ -868,7 +874,11 @@ function ensureUser(id, label, password = '') {
 }
 
 app.get('/api/users', asyncHandler(async (req, res) => {
-  const me = String(req.query.me || '');
+  // The acting user always comes from the signed session, never from the
+  // query string: `me` used to be client-controlled, which let anyone fetch
+  // any user's conversation list and last messages without logging in.
+  const me = req.cookies?.sessionUserId;
+  if (!me) return res.status(401).json({ error: 'Sign in required.' });
   const search = String(req.query.search || '').trim().toLowerCase();
   await storeReady;
 
@@ -1281,26 +1291,6 @@ app.delete('/api/admin/users', requireAdmin, async (req, res) => {
     publishUserEvent(String(req.cookies.sessionUserId), 'account-deleted', {});
   }
   res.clearCookie('sessionUserId', { path: '/' });
-  res.json({ ok: true });
-});
-
-app.delete('/api/users/:id', (req, res) => {
-  const id = String(req.params.id || '');
-  if (!id) {
-    return res.status(400).json({ error: 'Need user id.' });
-  }
-
-  memoryStore.users = memoryStore.users.filter((user) => user.id !== id);
-  memoryStore.messages = memoryStore.messages.filter((message) => message.fromId !== id && message.toId !== id);
-  persistStore();
-
-  res.json({ ok: true, deletedUserId: id });
-});
-
-app.delete('/api/users', (req, res) => {
-  memoryStore.users = [];
-  memoryStore.messages = [];
-  persistStore();
   res.json({ ok: true });
 });
 
@@ -1894,9 +1884,14 @@ async function pruneExpiredCallSignals() {
 }
 
 app.get('/api/calls/signals', async (req, res) => {
+  // Only the owner of the signaling stream may read it: call signals carry
+  // WebRTC payloads (SDP/ICE), which reveal the recipient's addresses.
+  const sessionUserId = req.cookies?.sessionUserId;
   const recipientId = String(req.query.for || '');
+  if (!sessionUserId || recipientId !== sessionUserId) {
+    return res.status(403).json({ error: 'Call signal access denied.' });
+  }
   const after = String(req.query.after || new Date(Date.now() - CALL_SIGNAL_MAX_AGE_MS).toISOString());
-  if (!recipientId) return res.status(400).json({ error: 'Need recipient id.' });
 
   const earliest = new Date(Date.now() - CALL_SIGNAL_MAX_AGE_MS).toISOString();
   const since = after > earliest ? after : earliest;
@@ -1924,6 +1919,11 @@ app.post('/api/calls/signal', async (req, res) => {
   const { callId, fromId, toId, type, payload = null } = req.body || {};
   if (!callId || !fromId || !toId || !CALL_SIGNAL_TYPES.has(type)) {
     return res.status(400).json({ error: 'Invalid call signal.' });
+  }
+  // The signal sender must be the signed-in user: otherwise anyone could
+  // inject forged call offers/signals aimed at another user.
+  if (req.cookies?.sessionUserId !== String(fromId)) {
+    return res.status(403).json({ error: 'Call signal access denied.' });
   }
 
   const serializedPayload = JSON.stringify(payload);
